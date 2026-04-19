@@ -69,8 +69,8 @@ def main():
         "--athlete",
         metavar="NAME",
         type=str,
-        default="John Doe",
-        help='Athlete name to display (default: "John Doe").',
+        default=os.getenv("ATHLETE", "Aiyuanzi"),
+        help='Athlete name to display (default: env ATHLETE or "Aiyuanzi").',
     )
     args_parser.add_argument(
         "--special",
