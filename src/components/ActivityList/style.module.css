@@ -50,13 +50,12 @@
   margin-bottom: var(--space-xs);
   background: transparent;
   /* border-bottom: 1px solid color-mix(in oklch, var(--ui-border) 80%, transparent); */
-  border-radius: 14px;
+  /* border-radius: 14px; */
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   transition:
     background 0.24s ease,
     backdrop-filter 0.24s ease,
-    border-color 0.24s ease,
     box-shadow 0.24s ease;
 }
 
@@ -73,7 +72,6 @@
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--divider-soft);
   box-shadow: 0 1px 0 color-mix(in oklch, var(--ui-text) 4%, transparent);
-  border-radius: 14px;
 }
 
 :global(html[data-theme='light']) .overviewStickyCompact {
@@ -154,7 +152,7 @@
   font-size: clamp(1.68rem, 2.2vw, 2rem);
   line-height: 1.02;
   letter-spacing: -0.035em;
-  max-width: 8ch;
+  max-width: none;
   color: var(--ui-text);
   transition:
     font-size 0.24s ease,
@@ -173,23 +171,43 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  color: inherit;
+  text-decoration: none;
 }
 
-.archiveTitleContent > h1 {
+.archiveTitleContent > :where(h1, span) {
   margin: 0;
   font: inherit;
   color: inherit;
   line-height: inherit;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .summaryLogo {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 4rem;
+  height: 4rem;
   border-radius: 9999px;
   border: 1px solid var(--card-outline);
   object-fit: cover;
   flex-shrink: 0;
+}
+
+.summaryBrandTitle {
+  margin: 0;
+  min-width: 0;
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: clamp(1.82rem, 3vw, 2.2rem);
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.02;
+  letter-spacing: -0.038em;
+  color: color-mix(in oklch, var(--ui-text) 94%, white 6%);
+  white-space: nowrap;
+}
+
+:global(html[data-theme='light']) .summaryBrandTitle {
+  color: #0f172a;
 }
 
 .overviewStickyCompact .archiveTitle {
@@ -198,6 +216,16 @@
   font-size: 1.18rem;
   line-height: 1;
   max-width: none;
+}
+
+.overviewStickyCompact .summaryLogo {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.overviewStickyCompact .summaryBrandTitle {
+  font-size: 1.18rem;
+  line-height: 1;
 }
 
 .themeToggleButton {
@@ -222,32 +250,8 @@
     background-color 0.2s ease;
 }
 
-.homeButton {
-  border: 1px solid var(--ui-control-border);
-  background: color-mix(
-    in oklch,
-    var(--ui-control-surface) 94%,
-    var(--color-background) 6%
-  );
-  color: var(--ui-text-secondary);
-  min-width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  padding: 0 12px;
-  transition:
-    transform 0.18s ease-out,
-    border-color 0.2s ease,
-    background-color 0.2s ease;
-}
-
 .themeToggleButton:hover,
-.themeToggleButton:focus-visible,
-.homeButton:hover,
-.homeButton:focus-visible {
+.themeToggleButton:focus-visible {
   transform: none;
   border-color: color-mix(
     in oklch,
@@ -263,17 +267,14 @@
   box-shadow: none;
 }
 
-:global(html[data-theme='dark']) .themeToggleButton,
-:global(html[data-theme='dark']) .homeButton {
+:global(html[data-theme='dark']) .themeToggleButton {
   background: var(--bg-control);
   border-color: var(--border-default);
   color: var(--text-secondary);
 }
 
 :global(html[data-theme='dark']) .themeToggleButton:hover,
-:global(html[data-theme='dark']) .themeToggleButton:focus-visible,
-:global(html[data-theme='dark']) .homeButton:hover,
-:global(html[data-theme='dark']) .homeButton:focus-visible {
+:global(html[data-theme='dark']) .themeToggleButton:focus-visible {
   background: color-mix(in oklch, var(--bg-control) 82%, #1a2a3f 18%);
   border-color: var(--border-active);
   color: var(--text-primary);
@@ -284,20 +285,6 @@
   align-items: center;
   justify-content: center;
   line-height: 0;
-}
-
-.homeIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 0;
-}
-
-.homeText {
-  font-size: 0.86rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1;
 }
 
 .viewSwitcher {
@@ -567,6 +554,11 @@
   gap: var(--space-md);
 }
 
+.dayCard .recentCardHeader > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .recentDate {
   margin: 0 0 var(--space-2xs);
   color: var(--ui-text-muted);
@@ -578,6 +570,11 @@
   font-family: 'Exo 2', var(--font-sans), sans-serif;
   font-size: 1.18rem;
   line-height: 1.12;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .runZoneTooltipWrap {
@@ -585,6 +582,10 @@
   display: inline-flex;
   margin-top: 4px;
   max-width: 100%;
+}
+
+.runZoneTooltipWrapCompact {
+  margin-top: 0;
 }
 
 .runZoneBadge {
@@ -602,6 +603,83 @@
   text-decoration-style: dotted;
   text-underline-offset: 3px;
   text-decoration-color: var(--ui-border);
+}
+
+.runZoneBadgeCompact {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid rgb(0 0 0 / 10%);
+  border-radius: 12px;
+  font-size: 0.76rem;
+  text-decoration: none;
+}
+
+.runZoneLabelMeta {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+  justify-items: start;
+  text-align: left;
+}
+
+.runZoneLabelShort {
+  display: inline;
+  font-weight: 600;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+  opacity: 0.72;
+}
+
+.runZoneLabelFull {
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.runZoneCount {
+  display: inline-flex;
+  align-items: center;
+  justify-self: center;
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.runZoneCountMuted {
+  color: color-mix(in oklch, var(--ui-text-muted) 84%, white 16%);
+  font-weight: 500;
+  opacity: 0.26;
+}
+
+.runZoneBadgeCompact.runZoneBadgeZ1 {
+  background: color-mix(in oklch, var(--ui-heart-z1) 4%, transparent);
+}
+
+.runZoneBadgeCompact.runZoneBadgeZ2 {
+  background: color-mix(in oklch, var(--ui-heart-z2) 4%, transparent);
+}
+
+.runZoneBadgeCompact.runZoneBadgeZ3 {
+  background: color-mix(in oklch, var(--ui-heart-z3) 4%, transparent);
+}
+
+.runZoneBadgeCompact.runZoneBadgeZ4 {
+  background: color-mix(in oklch, var(--ui-heart-z4) 4%, transparent);
+}
+
+.runZoneBadgeCompact.runZoneBadgeZ5 {
+  background: color-mix(in oklch, var(--ui-heart-z5) 4%, transparent);
 }
 
 .runZoneBadge:focus-visible {
@@ -644,6 +722,7 @@
   font-size: 0.72rem;
   font-weight: 500;
   line-height: 1.45;
+  white-space: pre-line;
   /* box-shadow: var(--ui-shadow); */
   opacity: 0;
   visibility: hidden;
@@ -781,15 +860,27 @@
 .splitKm {
   color: var(--ui-text-secondary);
   font-weight: 700;
+  font-size: 14px;
 }
 
 .splitValue {
   /* color: var(--ui-accent-primary); */
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
   font-size: 0.88rem;
   font-weight: 600;
 }
 
-.splitRow .splitValue:nth-child(3) {
+.splitValueFast {
+  color: color-mix(in oklch, var(--ui-accent-primary) 78%, var(--ui-text) 22%);
+}
+
+.splitValuePeakHr {
+  color: color-mix(in oklch, var(--ui-heart-z4) 76%, var(--ui-text) 24%);
+}
+
+.splitRow .splitValue:nth-child(3):not(.splitValuePeakHr) {
   color: var(--ui-text);
 }
 
@@ -850,9 +941,58 @@
 }
 
 .periodCard {
+  container-type: inline-size;
   display: grid;
   gap: var(--space-lg);
   padding: var(--space-lg);
+}
+
+.periodCardLifetime {
+  position: relative;
+  overflow: hidden;
+  color: #ecfeff;
+  border-color: rgba(45, 212, 191, 0.24);
+  background: radial-gradient(
+      circle at 20% 0%,
+      rgba(52, 211, 153, 0.32),
+      transparent 30%
+    ),
+    radial-gradient(circle at 88% 18%, rgba(251, 191, 36, 0.2), transparent 26%),
+    radial-gradient(
+      circle at 60% 86%,
+      rgba(14, 165, 233, 0.18),
+      transparent 34%
+    ),
+    linear-gradient(140deg, #0f172a 0%, #073b37 48%, #064e3b 100%);
+  box-shadow:
+    0 30px 90px rgba(6, 78, 59, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.periodCardLifetime::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 13px;
+  pointer-events: none;
+  background: linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.18),
+      transparent 18%,
+      transparent 76%,
+      rgba(255, 255, 255, 0.08)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.035) 0 1px,
+      transparent 1px 72px
+    );
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+.periodCardLifetime > * {
+  position: relative;
+  z-index: 1;
 }
 
 .periodGrid {
@@ -874,12 +1014,34 @@
   grid-column: span 4;
 }
 
-.yearGrid .periodCard:first-child {
-  grid-column: span 12;
+.yearGrid .yearPrimaryCard {
+  grid-column: span 7;
 }
 
-.yearGrid .periodCard:nth-child(n + 2) {
+.yearGrid .yearCumulativeCard {
+  grid-column: span 5;
+}
+
+.yearGrid .periodCard:nth-child(n + 3) {
   grid-column: span 6;
+}
+
+.yearGrid {
+  grid-template-columns: minmax(320px, 760px) minmax(0, 1fr);
+  justify-content: start;
+  align-items: start;
+}
+
+.yearGrid .periodCard,
+.yearGrid .yearPrimaryCard,
+.yearGrid .periodCard:nth-child(n + 3) {
+  grid-column: 1;
+}
+
+.yearGrid .yearCumulativeCard {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
 }
 
 .periodCardHeader {
@@ -896,6 +1058,23 @@
   line-height: 1;
 }
 
+.periodTitleLifetime {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.periodLifetimeTrophy {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(251, 191, 36, 0.16);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.18);
+}
+
 .periodCount {
   margin: 0;
   color: var(--ui-text-secondary);
@@ -903,10 +1082,122 @@
   font-weight: 700;
 }
 
+.periodCardLifetime .periodKicker {
+  color: rgba(167, 243, 208, 0.84);
+}
+
+.periodCardLifetime .periodCount {
+  color: #d1fae5;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 243, 208, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lifetimeHero {
+  position: relative;
+  padding: 24px 18px 22px;
+  margin-top: -2px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.14),
+      rgba(255, 255, 255, 0.04)
+    ),
+    radial-gradient(
+      circle at 78% 28%,
+      rgba(251, 191, 36, 0.22),
+      transparent 34%
+    );
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.lifetimeHero::before {
+  content: '2000+';
+  position: absolute;
+  right: -8px;
+  top: -22px;
+  font-size: 88px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.09em;
+  color: rgba(255, 255, 255, 0.045);
+  pointer-events: none;
+}
+
+.lifetimeHeroLabel {
+  margin: 0 0 8px;
+  color: rgba(209, 250, 229, 0.76);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.lifetimeHeroNumber {
+  margin: 0;
+  font-size: clamp(42px, 5vw, 58px);
+  line-height: 0.96;
+  font-weight: 950;
+  letter-spacing: -0.07em;
+  color: #f8fafc;
+  text-shadow: 0 0 32px rgba(52, 211, 153, 0.24);
+}
+
+.lifetimeHeroNumber small {
+  font-size: 22px;
+  color: #86efac;
+  letter-spacing: -0.04em;
+}
+
+.lifetimeHeroNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 850;
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
 .periodStats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-md);
+}
+
+.periodStatsLifetime {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.periodStatsLifetime > div {
+  padding: 12px 10px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.periodStatsLifetime > div:first-child {
+  display: none;
+}
+
+.periodStatsLifetime > div > span {
+  color: rgba(209, 250, 229, 0.68);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: normal;
+}
+
+.periodStatsLifetime > div > strong {
+  color: #ecfeff !important;
+  font-size: 15px;
+  line-height: 1.2;
 }
 
 .periodStats > div {
@@ -929,10 +1220,255 @@
   );
 }
 
+.periodIntensityStats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.periodIntensityStats > .runZoneTooltipWrap {
+  display: flex;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--divider-soft);
+}
+
+.periodPersonalBests {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.periodPersonalBestsLifetime {
+  margin-top: -4px;
+}
+
+.periodPersonalBestCard {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgb(0 0 0 / 10%);
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--ui-surface) 90%, transparent);
+}
+
+.periodPersonalBestCardInLifetime {
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.11);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.periodPersonalBestCardLifetime {
+  /* border-color: color-mix(
+    in oklch,
+    var(--ui-accent-primary) 26%,
+    rgb(0 0 0 / 10%) 74%
+  );
+  background: color-mix(
+    in oklch,
+    var(--ui-accent-primary) 5%,
+    var(--ui-surface) 95%
+  );
+  box-shadow: 0 1px 0 color-mix(in oklch, var(--ui-accent-primary) 10%, transparent); */
+}
+
+.periodPersonalBestCardLifetimeFeatured {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.18),
+    rgba(255, 255, 255, 0.06)
+  );
+  box-shadow:
+    0 0 28px rgba(251, 191, 36, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
+}
+
+.periodPersonalBestLabel {
+  color: var(--ui-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.periodCardLifetime .periodPersonalBestLabel {
+  color: rgba(209, 250, 229, 0.68);
+}
+
+.periodPersonalBestValue {
+  color: color-mix(in oklch, var(--ui-accent-primary) 72%, var(--ui-text) 28%);
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.periodCardLifetime .periodPersonalBestValue {
+  color: #6ee7b7;
+}
+
+.periodPersonalBestBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--ui-accent-pb) 12%, transparent);
+  color: color-mix(in oklch, var(--ui-accent-pb) 72%, var(--ui-text) 28%);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.periodPersonalBestTag {
+  width: max-content;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  background: #fff3c4;
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.periodPersonalBestTag.total {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.1);
+}
+
+.periodPersonalBestTagYear {
+  color: color-mix(in oklch, var(--ui-accent-primary) 72%, var(--ui-text) 28%);
+  background: color-mix(in oklch, var(--ui-accent-primary) 12%, transparent);
+  border-color: color-mix(in oklch, var(--ui-accent-primary) 26%, transparent);
+}
+
+.periodPersonalBestTagWrap {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+}
+
+.periodPersonalBestTooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 164px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(167, 243, 208, 0.24);
+  background: rgba(15, 23, 42, 0.96);
+  color: #d1fae5;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    visibility 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .periodPersonalBestTagWrap:hover .periodPersonalBestTooltip,
+  .periodPersonalBestTagWrap:focus-within .periodPersonalBestTooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.periodCardLifetime .periodPersonalBestBadge {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.13);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+}
+
+@container (max-width: 720px) {
+  .periodPersonalBests {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 460px) {
+  .runZoneBadgeCompact {
+    gap: 6px;
+    font-size: 0.72rem;
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+
+  .runZoneLabelFull {
+    display: none;
+  }
+
+  .runZoneCount {
+    justify-self: center;
+    font-size: 0.98rem;
+  }
+
+  .periodPersonalBests {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .periodChart {
   min-height: 220px;
   padding-top: var(--space-sm);
   border-top: 1px solid var(--divider-soft);
+}
+
+.periodChartLifetime {
+  min-height: 170px;
+  padding: 18px 10px 12px;
+  border-top: none;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lifetimeMilestone {
+  margin-top: -2px;
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 12px;
+  border-radius: 17px;
+  background: rgba(251, 191, 36, 0.11);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  color: #fde68a;
+}
+
+.lifetimeMilestoneIcon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(251, 191, 36, 0.14);
+  font-size: 20px;
+}
+
+.lifetimeMilestone strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+  color: #fef3c7;
+}
+
+.lifetimeMilestone span {
+  font-size: 12px;
+  color: rgba(254, 243, 199, 0.74);
 }
 
 .lifeHeader {
@@ -1020,8 +1556,9 @@
   .monthGrid .periodCard:first-child,
   .weekGrid .periodCard:nth-child(2),
   .monthGrid .periodCard:nth-child(2),
-  .yearGrid .periodCard:first-child,
-  .yearGrid .periodCard:nth-child(n + 2) {
+  .yearGrid .yearPrimaryCard,
+  .yearGrid .yearCumulativeCard,
+  .yearGrid .periodCard:nth-child(n + 3) {
     grid-template-columns: 1fr;
     grid-column: auto;
   }
@@ -1153,8 +1690,7 @@
     backdrop-filter: none;
   }
 
-  .themeToggleButton,
-  .homeButton {
+  .themeToggleButton {
     min-width: 44px;
     height: 44px;
   }

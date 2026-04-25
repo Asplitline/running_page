@@ -7,7 +7,6 @@ import RunTable from '@/components/RunTable';
 import SVGStat from '@/components/SVGStat';
 import YearsStat from '@/components/YearsStat';
 import useActivities from '@/hooks/useActivities';
-import useSiteMetadata from '@/hooks/useSiteMetadata';
 import { useInterval } from '@/hooks/useInterval';
 import { IS_CHINESE, getHeatmapFilterTitle } from '@/utils/const';
 import {
@@ -26,11 +25,8 @@ import {
 } from '@/utils/utils';
 import { useThemeChangeCounter } from '@/hooks/useTheme';
 import pageStyles from './index.module.css';
-import StickyHeader from '@/components/StickyHeader';
-import UnifiedTitle from '@/components/UnifiedTitle';
 
 const Index = () => {
-  const { siteTitle, siteUrl } = useSiteMetadata();
   const { activities, thisYear } = useActivities();
   const themeChangeCounter = useThemeChangeCounter();
   const [year, setYear] = useState(thisYear);
@@ -391,16 +387,6 @@ const Index = () => {
   return (
     <Layout>
       <div className={pageStyles.colSide}>
-        <StickyHeader
-          className={pageStyles.titleSticky}
-          innerClassName={pageStyles.titleStickyInner}
-          enableCompact={false}
-          title={
-            <UnifiedTitle as="h1" href={siteUrl} variant="home">
-              {siteTitle}
-            </UnifiedTitle>
-          }
-        />
         {(viewState.zoom ?? 0) <= 3 && IS_CHINESE ? (
           <LocationStat
             changeYear={changeYear}

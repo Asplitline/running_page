@@ -156,7 +156,9 @@ class Track:
             "average_speed": activity.average_speed or 0,
         }
         self.average_heartrate = (
-            activity.average_heartrate if hasattr(activity, "average_heartrate") else None
+            activity.average_heartrate
+            if hasattr(activity, "average_heartrate")
+            else None
         )
         self.max_heartrate = (
             activity.max_heartrate if hasattr(activity, "max_heartrate") else None
@@ -171,9 +173,7 @@ class Track:
             activity.split_paces if hasattr(activity, "split_paces") else []
         )
         self.split_heart_rates = (
-            activity.split_heart_rates
-            if hasattr(activity, "split_heart_rates")
-            else []
+            activity.split_heart_rates if hasattr(activity, "split_heart_rates") else []
         )
 
     def bbox(self):
@@ -347,7 +347,9 @@ class Track:
         )
         self.max_heartrate = max(heart_rate_list) if heart_rate_list else None
         self.average_cadence = (
-            math.ceil(sum(cadence_list) / len(cadence_list) * RUNNING_CADENCE_MULTIPLIER)
+            math.ceil(
+                sum(cadence_list) / len(cadence_list) * RUNNING_CADENCE_MULTIPLIER
+            )
             if cadence_list
             else None
         )
@@ -563,9 +565,7 @@ class Track:
     @staticmethod
     def _haversine_m(lat1, lon1, lat2, lon2):
         radius = 6371000.0
-        lat1, lon1, lat2, lon2 = map(
-            math.radians, [lat1, lon1, lat2, lon2]
-        )
+        lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
         dlat = lat2 - lat1
         dlon = lon2 - lon1
         a = (
@@ -606,12 +606,8 @@ class Track:
                 1, len(all_cadence) - midpoint
             )
             cadence_trend = {
-                "first_half": math.ceil(
-                    first_half * RUNNING_CADENCE_MULTIPLIER
-                ),
-                "second_half": math.ceil(
-                    second_half * RUNNING_CADENCE_MULTIPLIER
-                ),
+                "first_half": math.ceil(first_half * RUNNING_CADENCE_MULTIPLIER),
+                "second_half": math.ceil(second_half * RUNNING_CADENCE_MULTIPLIER),
                 "direction": (
                     "up"
                     if second_half - first_half > 0.5
@@ -623,7 +619,6 @@ class Track:
         split_heart_rates = []
         max_full_km = int(cumulative // 1000)
         prev_dt = valid_points[0]["time"]
-        prev_target = 0.0
         prev_index = 0
 
         for km in range(1, max_full_km + 1):
@@ -660,14 +655,15 @@ class Track:
             split_heart_rates.append(
                 {
                     "km": km,
-                    "avg_hr": math.ceil(sum(hr_values) / len(hr_values))
-                    if hr_values
-                    else None,
+                    "avg_hr": (
+                        math.ceil(sum(hr_values) / len(hr_values))
+                        if hr_values
+                        else None
+                    ),
                 }
             )
 
             prev_dt = mark_dt
-            prev_target = target
             prev_index = max(0, end_index - 1)
 
         return cadence_trend, split_paces, split_heart_rates

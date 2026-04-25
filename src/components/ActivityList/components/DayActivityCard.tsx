@@ -1,17 +1,13 @@
 import { DIST_UNIT } from '@/utils/utils';
 import {
   getHeartRateZone,
-  getRunIntensityLabelFromAvgHr,
   getRunIntensityTooltipFromAvgHr,
   IS_CHINESE,
 } from '@/utils/const';
-import {
-  formatDateLong,
-  formatPaceCompact,
-  formatSplitPace,
-  formatTimeShort,
-} from '../helpers';
+import { formatDateLong, formatPaceCompact, formatTimeShort } from '../helpers';
 import { RunActivity } from '../types';
+import DayActivitySplitPanel from './DayActivitySplitPanel';
+import HeartRateZoneTag from './HeartRateZoneTag';
 import styles from '../style.module.css';
 
 interface DayActivityCardProps {
@@ -19,8 +15,6 @@ interface DayActivityCardProps {
   currentPage: number;
   onPageChange: (runId: number, nextPage: number) => void;
 }
-
-const SPLIT_PAGE_SIZE = 5;
 
 function normalizeSplitArray<T>(value: unknown): T[] {
   if (value == null) return [];
@@ -46,14 +40,6 @@ const getHeartRateToneClass = (heartRate?: number | null) => {
   return styles.heartValueZ5;
 };
 
-const getZoneBadgeClass = (zone: ReturnType<typeof getHeartRateZone>) => {
-  if (zone === 'z1') return styles.runZoneBadgeZ1;
-  if (zone === 'z2') return styles.runZoneBadgeZ2;
-  if (zone === 'z3') return styles.runZoneBadgeZ3;
-  if (zone === 'z4') return styles.runZoneBadgeZ4;
-  return styles.runZoneBadgeZ5;
-};
-
 const DayActivityCard = ({
   activity,
   currentPage,
@@ -76,16 +62,16 @@ const DayActivityCard = ({
       heartRate: hrRow?.avg_hr ?? null,
     };
   });
-  const intensity = getRunIntensityLabelFromAvgHr(activity.average_heartrate);
+  const intensityZone = activity.average_heartrate
+    ? getHeartRateZone(activity.average_heartrate)
+    : null;
   const intensityTooltip = getRunIntensityTooltipFromAvgHr(
     activity.average_heartrate
   );
-  const totalSplitCount = allSplitRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalSplitCount / SPLIT_PAGE_SIZE));
-  const splitRows = allSplitRows.slice(
-    currentPage * SPLIT_PAGE_SIZE,
-    currentPage * SPLIT_PAGE_SIZE + SPLIT_PAGE_SIZE
-  );
+  const fastestSplitPace =
+    allSplitRows.length > 0
+      ? Math.min(...allSplitRows.map((split) => split.pace))
+      : null;
 
   return (
     <article className={`${styles.recentCard} ${styles.dayCard}`}>
@@ -97,20 +83,11 @@ const DayActivityCard = ({
           <h3 className={styles.recentTitle}>
             {activity.name || (IS_CHINESE ? '跑步' : 'Run')}
           </h3>
-          {intensity && intensityTooltip ? (
-            <span className={styles.runZoneTooltipWrap}>
-              <span
-                className={`${styles.runZoneBadge} ${getZoneBadgeClass(intensity.zone)}`}
-                tabIndex={0}
-                role="note"
-                aria-label={intensityTooltip}
-              >
-                {intensity.label}
-              </span>
-              <span className={styles.runZoneTooltip} aria-hidden="true">
-                {intensityTooltip}
-              </span>
-            </span>
+          {intensityZone && intensityTooltip ? (
+            <HeartRateZoneTag
+              zone={intensityZone}
+              tooltipText={intensityTooltip}
+            />
           ) : null}
         </div>
         <span className={styles.recentDistance}>
@@ -125,6 +102,15 @@ const DayActivityCard = ({
         <div>
           <dt>{IS_CHINESE ? '用时' : 'Time'}</dt>
           <dd>{formatTimeShort(activity.totalSeconds)}</dd>
+        </div>
+        <div>
+          <dt>{IS_CHINESE ? '最快配速' : 'Best Pace'}</dt>
+          <dd>
+            {fastestSplitPace != null
+              ? formatTimeShort(fastestSplitPace)
+              : '--'}
+            {fastestSplitPace != null ? `/${DIST_UNIT}` : ''}
+          </dd>
         </div>
         <div>
           <dt>{IS_CHINESE ? '心率' : 'HR'}</dt>
@@ -161,62 +147,12 @@ const DayActivityCard = ({
           </dd>
         </div>
       </dl>
-      {splitRows.length > 0 ? (
-        <div className={styles.splitBlock}>
-          <div className={styles.splitHeader}>
-            <span>{IS_CHINESE ? '公里' : 'KM'}</span>
-            <span>{IS_CHINESE ? '配速' : 'Pace'}</span>
-            <span>{IS_CHINESE ? '心率' : 'HR'}</span>
-          </div>
-          <div className={styles.splitList}>
-            {splitRows.map((split) => (
-              <div key={split.km} className={styles.splitRow}>
-                <span className={styles.splitKm}>{split.km}K</span>
-                <span className={styles.splitValue}>
-                  {formatSplitPace(split.pace)}
-                </span>
-                <span
-                  className={`${styles.splitValue} ${getHeartRateToneClass(split.heartRate)}`}
-                >
-                  {split.heartRate ? `${split.heartRate} bpm` : '--'}
-                </span>
-              </div>
-            ))}
-          </div>
-          {totalPages > 1 ? (
-            <div className={styles.splitPagination}>
-              <button
-                type="button"
-                className={styles.splitPageButton}
-                onClick={() =>
-                  onPageChange(activity.run_id, Math.max(0, currentPage - 1))
-                }
-                disabled={currentPage === 0}
-                aria-label={IS_CHINESE ? '上一页分段' : 'Previous split page'}
-              >
-                ←
-              </button>
-              <span className={styles.splitPageStatus}>
-                {currentPage + 1} / {totalPages}
-              </span>
-              <button
-                type="button"
-                className={styles.splitPageButton}
-                onClick={() =>
-                  onPageChange(
-                    activity.run_id,
-                    Math.min(totalPages - 1, currentPage + 1)
-                  )
-                }
-                disabled={currentPage >= totalPages - 1}
-                aria-label={IS_CHINESE ? '下一页分段' : 'Next split page'}
-              >
-                →
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      <DayActivitySplitPanel
+        runId={activity.run_id}
+        splitRows={allSplitRows}
+        currentPage={currentPage}
+        onPageChange={onPageChange}
+      />
     </article>
   );
 };

@@ -52,6 +52,7 @@
     transparent
   );
   --ui-float-border: color-mix(in oklch, var(--ui-border) 70%, transparent);
+  --ui-accent-pb: #f59e0b;
   --ui-page-background: radial-gradient(
       circle at top left,
       color-mix(in oklch, #fb923c 10%, #0f172a),
@@ -95,6 +96,7 @@
     --ui-accent-primary: #16a34a;
     --ui-accent-secondary: #ea580c;
     --ui-accent-warning: #e11d48;
+    --ui-accent-pb: #d97706;
     --ui-accent-neutral: #334155;
     --ui-heart-z1: #3b7d77;
     --ui-heart-z2: #16a34a;
@@ -146,6 +148,7 @@
     --ui-accent-primary: #34d399;
     --ui-accent-secondary: #fb923c;
     --ui-accent-warning: #fb7185;
+    --ui-accent-pb: #f59e0b;
     --ui-accent-neutral: #cbd5e1;
     --ui-heart-z1: #5fa8a0;
     --ui-heart-z2: #34d399;
@@ -197,6 +200,7 @@
   --ui-accent-primary: #16a34a;
   --ui-accent-secondary: #ea580c;
   --ui-accent-warning: #e11d48;
+  --ui-accent-pb: #d97706;
   --ui-accent-neutral: #334155;
   --ui-heart-z1: #3b7d77;
   --ui-heart-z2: #16a34a;
@@ -246,6 +250,7 @@
   --ui-accent-primary: #34d399;
   --ui-accent-secondary: #fb923c;
   --ui-accent-warning: #fb7185;
+  --ui-accent-pb: #f59e0b;
   --ui-accent-neutral: #cbd5e1;
   --ui-heart-z1: #5fa8a0;
   --ui-heart-z2: #34d399;

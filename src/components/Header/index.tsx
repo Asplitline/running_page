@@ -1,7 +1,7 @@
 import useSiteMetadata from '@/hooks/useSiteMetadata';
+import NavBrand from '@/components/NavBrand';
 import StickyHeader from '@/components/StickyHeader';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
-import SiteLogo from '@/components/SiteLogo';
 import summaryHeaderStyles from '@/components/ActivityList/style.module.css';
 import styles from './style.module.css';
 
@@ -11,16 +11,18 @@ const Header = () => {
   return (
     <StickyHeader
       className={`${summaryHeaderStyles.overviewSticky} ${styles.homeSticky}`}
-      compactClassName={summaryHeaderStyles.overviewStickyCompact}
+      compactClassName={`${summaryHeaderStyles.overviewStickyCompact} ${styles.homeStickyCompact}`}
       innerClassName={styles.homeHeaderInner}
       titleClassName={styles.homeHeaderLeft}
       secondaryClassName={styles.homeHeaderRight}
       actionsClassName={styles.homeHeaderActions}
       title={
-        <SiteLogo
+        <NavBrand
           to={siteUrl}
-          className={styles.logoLink}
-          imageClassName={styles.logo}
+          className={styles.brandLink}
+          logoClassName={styles.logo}
+          titleClassName={styles.brandTitle}
+          titleAs="h1"
         />
       }
       secondary={

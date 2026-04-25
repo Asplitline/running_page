@@ -1,28 +1,155 @@
-import React, { useMemo, useState } from 'react';
-import { Helmet } from 'react-helmet-async';
-import { Link } from 'react-router-dom';
-import activities from '@/static/activities.json';
-import styles from './style.module.css';
-import { M_TO_DIST, Activity } from '@/utils/utils';
-import { IS_CHINESE } from '@/utils/const';
-import { HOME_PAGE_TITLE } from '@/utils/const';
-import {
-  DAY_SECTION_TITLE,
-  MONTH_SECTION_TITLE,
-  SUMMARY_PAGE_TITLE,
-  VIEW_LABELS,
-  WEEK_SECTION_TITLE,
-  YEAR_SECTION_TITLE,
-} from './constants';
-import { getActivitySeconds, getWeekKey, isRunningActivity } from './helpers';
-import { PeriodSummary, RunActivity, ViewMode } from './types';
-import ViewButton from './components/ViewButton';
-import PeriodCard from './components/PeriodCard';
-import DayActivityCard from './components/DayActivityCard';
+import NavBrand from '@/components/NavBrand';
 import StickyHeader from '@/components/StickyHeader';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
-import SiteLogo from '@/components/SiteLogo';
-import UnifiedTitle from '@/components/UnifiedTitle';
+import activities from '@/static/activities.json';
+import { getHeartRateZone, IS_CHINESE } from '@/utils/const';
+import { Activity, M_TO_DIST } from '@/utils/utils';
+import React, { useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import DayActivityCard from './components/DayActivityCard';
+import PeriodCard from './components/PeriodCard';
+import ViewButton from './components/ViewButton';
+import YearPeriodCard from './components/YearPeriodCard';
+import LifetimePeriodCard from './components/LifetimePeriodCard';
+import { SUMMARY_PAGE_TITLE, VIEW_LABELS } from './constants';
+import { getActivitySeconds, getWeekKey, isRunningActivity } from './helpers';
+import styles from './style.module.css';
+import {
+  PeriodPersonalBest,
+  PeriodSummary,
+  RunActivity,
+  ViewMode,
+} from './types';
+
+const YEARLY_PB_SPECS: Array<{
+  key: PeriodPersonalBest['key'];
+  label: string;
+  distance: number;
+}> = [
+  { key: '1k', label: '1km', distance: 1 },
+  { key: '5k', label: '5km', distance: 5 },
+  { key: '10k', label: '10km', distance: 10 },
+  { key: 'half', label: IS_CHINESE ? '半马' : 'Half', distance: 21.0975 },
+  { key: 'full', label: IS_CHINESE ? '全马' : 'Full', distance: 42.195 },
+];
+
+const getFastestSplitWindow = (
+  splitPaces: RunActivity['split_paces'],
+  windowSize: number
+) => {
+  if (!splitPaces || splitPaces.length < windowSize) {
+    return null;
+  }
+
+  const sortedPaces = [...splitPaces]
+    .sort((a, b) => a.km - b.km)
+    .map((split) => split.pace_seconds);
+
+  if (sortedPaces.some((pace) => typeof pace !== 'number')) {
+    return null;
+  }
+
+  let bestWindow: number | null = null;
+
+  for (
+    let startIndex = 0;
+    startIndex <= sortedPaces.length - windowSize;
+    startIndex += 1
+  ) {
+    const windowTotal = sortedPaces
+      .slice(startIndex, startIndex + windowSize)
+      .reduce((total, pace) => total + pace, 0);
+
+    if (bestWindow === null || windowTotal < bestWindow) {
+      bestWindow = windowTotal;
+    }
+  }
+
+  return bestWindow;
+};
+
+const getIsMatchingRaceDistance = (
+  distanceValue: number,
+  targetDistance: number
+) => {
+  const lowerBound = targetDistance * 0.985;
+  const upperBound = targetDistance * 1.05;
+  return distanceValue >= lowerBound && distanceValue <= upperBound;
+};
+
+type PersonalBestEntry = {
+  seconds: number | null;
+  achievedAt: string | null;
+};
+
+type PersonalBestRecord = Record<PeriodPersonalBest['key'], PersonalBestEntry>;
+
+const createYearlyPbRecord = (): PersonalBestRecord => ({
+  '1k': { seconds: null, achievedAt: null },
+  '5k': { seconds: null, achievedAt: null },
+  '10k': { seconds: null, achievedAt: null },
+  half: { seconds: null, achievedAt: null },
+  full: { seconds: null, achievedAt: null },
+});
+
+const updatePersonalBest = (
+  record: PersonalBestRecord,
+  key: PeriodPersonalBest['key'],
+  nextSeconds: number,
+  achievedAt: string
+) => {
+  const current = record[key];
+  if (current.seconds === null || nextSeconds < current.seconds) {
+    record[key] = {
+      seconds: nextSeconds,
+      achievedAt,
+    };
+  }
+};
+
+const applyActivityToYearlyPbs = (
+  activity: RunActivity,
+  yearlyPbs: PersonalBestRecord
+) => {
+  const achievedAt = activity.parsedDate.toISOString();
+  const fastestSingleKm = getFastestSplitWindow(activity.split_paces, 1);
+  if (fastestSingleKm !== null) {
+    updatePersonalBest(yearlyPbs, '1k', fastestSingleKm, achievedAt);
+  }
+
+  const fastestFiveKm = getFastestSplitWindow(activity.split_paces, 5);
+  if (fastestFiveKm !== null) {
+    updatePersonalBest(yearlyPbs, '5k', fastestFiveKm, achievedAt);
+  }
+
+  const fastestTenKm = getFastestSplitWindow(activity.split_paces, 10);
+  if (fastestTenKm !== null) {
+    updatePersonalBest(yearlyPbs, '10k', fastestTenKm, achievedAt);
+  }
+
+  if (getIsMatchingRaceDistance(activity.distanceValue, 21.0975)) {
+    updatePersonalBest(yearlyPbs, 'half', activity.totalSeconds, achievedAt);
+  }
+
+  if (getIsMatchingRaceDistance(activity.distanceValue, 42.195)) {
+    updatePersonalBest(yearlyPbs, 'full', activity.totalSeconds, achievedAt);
+  }
+};
+
+const getPersonalBestsFromRecord = (
+  yearlyPbs: PersonalBestRecord,
+  compareRecord?: PersonalBestRecord
+) =>
+  YEARLY_PB_SPECS.map((spec) => ({
+    key: spec.key,
+    label: spec.label,
+    seconds: yearlyPbs[spec.key].seconds,
+    achievedAt: yearlyPbs[spec.key].achievedAt,
+    isLifetimeBest:
+      yearlyPbs[spec.key].seconds !== null &&
+      compareRecord?.[spec.key].seconds !== null &&
+      yearlyPbs[spec.key].seconds === compareRecord?.[spec.key].seconds,
+  }));
 
 const getMonthlyScaleLabel = (key: string) => {
   const [year, month] = key.split('-');
@@ -48,7 +175,7 @@ const getYearlyScaleLabel = (year: string) => {
     return IS_CHINESE ? '月份分布' : 'Monthly Spread';
   }
 
-  return IS_CHINESE ? `${year}年各月` : `Months of ${year}`;
+  return IS_CHINESE ? `${year}年` : `Months of ${year}`;
 };
 
 const getMonthlyTooltipLabel = (key: string, value: string | number) => {
@@ -71,6 +198,10 @@ const getYearlyTooltipLabel = (year: string, value: string | number) => {
   return IS_CHINESE
     ? `${year}年${month}月`
     : `${year}-${String(month).padStart(2, '0')}`;
+};
+
+const getAllTimeTooltipLabel = (value: string | number) => {
+  return String(value);
 };
 
 const getISOWeekMonday = (weekKey: string) => {
@@ -108,6 +239,23 @@ const getWeeklyTooltipLabel = (weekKey: string, value: string | number) => {
   return `${targetDate.getMonth() + 1}/${targetDate.getDate()}`;
 };
 
+const getWeeklyScaleLabel = (weekKey: string) => {
+  const monday = getISOWeekMonday(weekKey);
+
+  if (!monday) {
+    return IS_CHINESE ? '周内分布' : 'Week Breakdown';
+  }
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  if (IS_CHINESE) {
+    return `${monday.getMonth() + 1}月${monday.getDate()}日 - ${sunday.getMonth() + 1}月${sunday.getDate()}日`;
+  }
+
+  return `${monday.getMonth() + 1}/${monday.getDate()} - ${sunday.getMonth() + 1}/${sunday.getDate()}`;
+};
+
 const ActivityList: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [splitPages, setSplitPages] = useState<Record<number, number>>({});
@@ -130,7 +278,7 @@ const ActivityList: React.FC = () => {
   );
 
   const dailyActivities = useMemo(
-    () => runningActivities.slice(0, 12),
+    () => runningActivities.slice(0, 20),
     [runningActivities]
   );
 
@@ -148,6 +296,12 @@ const ActivityList: React.FC = () => {
           totalDistance: 0,
           totalTime: 0,
           maxDistance: 0,
+          activeDays: 0,
+          z1Runs: 0,
+          z2Runs: 0,
+          z3Runs: 0,
+          z4Runs: 0,
+          z5Runs: 0,
           chartValues: Array.from({ length: 7 }, () => 0),
         });
       }
@@ -162,9 +316,24 @@ const ActivityList: React.FC = () => {
       );
       const dayIndex = (activity.parsedDate.getDay() + 6) % 7;
       summary.chartValues[dayIndex] += activity.distanceValue;
+
+      if (activity.average_heartrate) {
+        const zone = getHeartRateZone(activity.average_heartrate);
+        if (zone === 'z1') summary.z1Runs = (summary.z1Runs ?? 0) + 1;
+        if (zone === 'z2') summary.z2Runs = (summary.z2Runs ?? 0) + 1;
+        if (zone === 'z3') summary.z3Runs = (summary.z3Runs ?? 0) + 1;
+        if (zone === 'z4') summary.z4Runs = (summary.z4Runs ?? 0) + 1;
+        if (zone === 'z5') summary.z5Runs = (summary.z5Runs ?? 0) + 1;
+      }
     });
 
-    return Array.from(summaryMap.values()).slice(0, 8);
+    return Array.from(summaryMap.values())
+      .map((summary) => ({
+        ...summary,
+        activeDays: summary.chartValues.filter((distance) => distance > 0)
+          .length,
+      }))
+      .slice(0, 8);
   }, [runningActivities]);
 
   const monthlySummaries = useMemo<PeriodSummary[]>(() => {
@@ -203,8 +372,19 @@ const ActivityList: React.FC = () => {
     return Array.from(summaryMap.values()).slice(0, 6);
   }, [runningActivities]);
 
+  const allTimePersonalBestRecord = useMemo(() => {
+    const allTimePbs = createYearlyPbRecord();
+
+    runningActivities.forEach((activity) => {
+      applyActivityToYearlyPbs(activity, allTimePbs);
+    });
+
+    return allTimePbs;
+  }, [runningActivities]);
+
   const yearlySummaries = useMemo<PeriodSummary[]>(() => {
     const summaryMap = new Map<string, PeriodSummary>();
+    const yearlyPbMap = new Map<string, PersonalBestRecord>();
 
     runningActivities.forEach((activity) => {
       const year = activity.parsedDate.getFullYear().toString();
@@ -219,9 +399,12 @@ const ActivityList: React.FC = () => {
           maxDistance: 0,
           chartValues: Array.from({ length: 12 }, () => 0),
         });
+
+        yearlyPbMap.set(year, createYearlyPbRecord());
       }
 
       const summary = summaryMap.get(year)!;
+      const yearlyPbs = yearlyPbMap.get(year)!;
       summary.count += 1;
       summary.totalDistance += activity.distanceValue;
       summary.totalTime += activity.totalSeconds;
@@ -231,10 +414,60 @@ const ActivityList: React.FC = () => {
       );
       summary.chartValues[activity.parsedDate.getMonth()] +=
         activity.distanceValue;
+      applyActivityToYearlyPbs(activity, yearlyPbs);
     });
 
-    return Array.from(summaryMap.values());
-  }, [runningActivities]);
+    return Array.from(summaryMap.values()).map((summary) => {
+      const personalBests = yearlyPbMap.get(summary.key);
+
+      return {
+        ...summary,
+        personalBests: personalBests
+          ? getPersonalBestsFromRecord(personalBests, allTimePersonalBestRecord)
+          : undefined,
+      };
+    });
+  }, [allTimePersonalBestRecord, runningActivities]);
+
+  const currentYearSummary = yearlySummaries[0];
+
+  const cumulativeYearSummary = useMemo<PeriodSummary | null>(() => {
+    if (!runningActivities.length) {
+      return null;
+    }
+
+    const allTimePbs = createYearlyPbRecord();
+    const yearlyTrend = [...yearlySummaries].reverse().map((summary) => ({
+      year: summary.key,
+      totalDistance: summary.totalDistance,
+    }));
+
+    const summary = runningActivities.reduce<PeriodSummary>(
+      (acc, activity) => {
+        acc.count += 1;
+        acc.totalDistance += activity.distanceValue;
+        acc.totalTime += activity.totalSeconds;
+        acc.maxDistance = Math.max(acc.maxDistance, activity.distanceValue);
+        applyActivityToYearlyPbs(activity, allTimePbs);
+        return acc;
+      },
+      {
+        key: 'all-time',
+        label: IS_CHINESE ? '累计' : 'All-time',
+        count: 0,
+        totalDistance: 0,
+        totalTime: 0,
+        maxDistance: 0,
+        chartLabels: yearlyTrend.map((item) => item.year),
+        chartValues: yearlyTrend.map((item) => item.totalDistance),
+      }
+    );
+
+    return {
+      ...summary,
+      personalBests: getPersonalBestsFromRecord(allTimePbs),
+    };
+  }, [runningActivities, yearlySummaries]);
 
   const renderContent = () => {
     if (!runningActivities.length) {
@@ -293,7 +526,8 @@ const ActivityList: React.FC = () => {
               <PeriodCard
                 key={summary.key}
                 summary={summary}
-                scaleLabel={IS_CHINESE ? '周内分布' : 'Week Breakdown'}
+                scaleLabel={getWeeklyScaleLabel(summary.key)}
+                periodType="week"
                 tooltipLabelFormatter={(value) =>
                   getWeeklyTooltipLabel(summary.key, value)
                 }
@@ -317,6 +551,7 @@ const ActivityList: React.FC = () => {
                 key={summary.key}
                 summary={summary}
                 scaleLabel={getMonthlyScaleLabel(summary.key)}
+                periodType="month"
                 tooltipLabelFormatter={(value) =>
                   getMonthlyTooltipLabel(summary.key, value)
                 }
@@ -335,8 +570,28 @@ const ActivityList: React.FC = () => {
           </UnifiedTitle> */}
 
           <div className={`${styles.periodGrid} ${styles.yearGrid}`}>
-            {yearlySummaries.map((summary) => (
-              <PeriodCard
+            {currentYearSummary ? (
+              <YearPeriodCard
+                key={`current-${currentYearSummary.key}`}
+                summary={currentYearSummary}
+                scaleLabel={IS_CHINESE ? '今年数据' : 'This Year'}
+                className={styles.yearPrimaryCard}
+                tooltipLabelFormatter={(value) =>
+                  getYearlyTooltipLabel(currentYearSummary.key, value)
+                }
+              />
+            ) : null}
+            {cumulativeYearSummary ? (
+              <LifetimePeriodCard
+                key={cumulativeYearSummary.key}
+                summary={cumulativeYearSummary}
+                scaleLabel={IS_CHINESE ? '累计数据' : 'All-time'}
+                className={styles.yearCumulativeCard}
+                tooltipLabelFormatter={getAllTimeTooltipLabel}
+              />
+            ) : null}
+            {yearlySummaries.slice(1).map((summary) => (
+              <YearPeriodCard
                 key={summary.key}
                 summary={summary}
                 scaleLabel={getYearlyScaleLabel(summary.key)}
@@ -366,10 +621,12 @@ const ActivityList: React.FC = () => {
           secondaryClassName={styles.viewSwitcher}
           actionsClassName={styles.archiveActions}
           title={
-            <SiteLogo
+            <NavBrand
               to="/"
-              className={styles.logoLink}
-              imageClassName={styles.logo}
+              className={styles.archiveTitleContent}
+              logoClassName={styles.summaryLogo}
+              titleClassName={styles.summaryBrandTitle}
+              titleAs="h1"
             />
           }
           secondary={
@@ -388,20 +645,10 @@ const ActivityList: React.FC = () => {
             </nav>
           }
           actions={
-            <>
-              <Link
-                to="/"
-                className={styles.homeButton}
-                aria-label={IS_CHINESE ? '回到首页' : 'Back to home'}
-                title={IS_CHINESE ? '回到首页' : 'Back to home'}
-              >
-                <span className={styles.homeText}>{HOME_PAGE_TITLE}</span>
-              </Link>
-              <ThemeToggleButton
-                className={styles.themeToggleButton}
-                iconClassName={styles.themeToggleIcon}
-              />
-            </>
+            <ThemeToggleButton
+              className={styles.themeToggleButton}
+              iconClassName={styles.themeToggleIcon}
+            />
           }
         />
 

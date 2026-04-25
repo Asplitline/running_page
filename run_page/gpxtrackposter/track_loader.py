@@ -141,7 +141,9 @@ class TrackLoader:
         try:
             with concurrent.futures.ProcessPoolExecutor() as executor:
                 future_to_file_name = {
-                    executor.submit(load_func, file_name, activity_title_dict): file_name
+                    executor.submit(
+                        load_func, file_name, activity_title_dict
+                    ): file_name
                     for file_name in file_names
                 }
             for future in concurrent.futures.as_completed(future_to_file_name):
@@ -153,7 +155,9 @@ class TrackLoader:
                 else:
                     tracks[file_name] = t
         except (OSError, PermissionError) as e:
-            log.warning(f"Process pool unavailable, falling back to serial loading: {e}")
+            log.warning(
+                f"Process pool unavailable, falling back to serial loading: {e}"
+            )
             for file_name in file_names:
                 try:
                     tracks[file_name] = load_func(file_name, activity_title_dict)

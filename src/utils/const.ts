@@ -254,6 +254,13 @@ export const getRunIntensityLabelFromAvgHr = (
   return { zone, label: IS_CHINESE ? zh : en };
 };
 
+export const getRunIntensityLabelFromZone = (
+  zone: HeartRateZone
+): { zone: HeartRateZone; label: string } => {
+  const { zh, en } = HEART_RATE_ZONE_LABELS[zone];
+  return { zone, label: IS_CHINESE ? zh : en };
+};
+
 const ZONE_RANGE_DESC: Record<HeartRateZone, { zh: string; en: string }> = {
   z1: {
     zh: '低于最大心率的 60%',
@@ -277,6 +284,29 @@ const ZONE_RANGE_DESC: Record<HeartRateZone, { zh: string; en: string }> = {
   },
 };
 
+const ZONE_PURPOSE_DESC: Record<HeartRateZone, { zh: string; en: string }> = {
+  z1: {
+    zh: '偏恢复与放松，适合热身、冷身和轻松恢复。',
+    en: 'Recovery-focused, useful for warm-up, cool-down, and easy recovery.',
+  },
+  z2: {
+    zh: '偏有氧基础，适合稳定堆量与轻松续航。',
+    en: 'Aerobic-base work, suited for steady volume and sustainable easy running.',
+  },
+  z3: {
+    zh: '偏稳态与节奏，适合提升耐力与配速稳定性。',
+    en: 'Steady or tempo work, useful for endurance and pace stability.',
+  },
+  z4: {
+    zh: '偏阈值刺激，适合提升乳酸阈值与高强度持续能力。',
+    en: 'Threshold-focused, useful for improving lactate threshold and sustained intensity.',
+  },
+  z5: {
+    zh: '偏极限刺激，适合短时间高强度冲击与 VO2max 训练。',
+    en: 'Max-intensity work, useful for short hard efforts and VO2max training.',
+  },
+};
+
 /** 解释「为什么是这个标签」：依据平均心率与估算 HRmax 的百分比落在哪一区 */
 export const getRunIntensityTooltipFromAvgHr = (
   averageHeartrate?: number | null,
@@ -297,9 +327,52 @@ export const getRunIntensityTooltipFromAvgHr = (
     : HEART_RATE_ZONE_LABELS[zone].en;
 
   if (IS_CHINESE) {
-    return `标签来自本次「平均心率」相对「估算最大心率」的区间。估算公式：220 − 年龄（按出生年 ${birthYear}，当前约 ${age} 岁 → 约 ${maxHr} bpm）。本次平均 ${Math.round(averageHeartrate)} bpm，约 ${pct}% HRmax，落在 ${zoneName}（${range}）。`;
+    return `标签依据：本次平均心率\n估算 HRmax：220 − 年龄（出生年 ${birthYear}，当前约 ${age} 岁 → 约 ${maxHr} bpm）\n本次平均：${Math.round(averageHeartrate)} bpm（约 ${pct}% HRmax）\n结果：${zoneName}（${range}）`;
   }
-  return `This tag uses your average heart rate vs an estimated max HR (220 − age; birth year ${birthYear}, ~${age} y → ~${maxHr} bpm). Average ${Math.round(averageHeartrate)} bpm ≈ ${pct}% HRmax → ${zoneName} (${range}).`;
+  return `Based on: average heart rate\nEstimated max HR: 220 − age (birth year ${birthYear}, ~${age} y → ~${maxHr} bpm)\nThis run: ${Math.round(averageHeartrate)} bpm (~${pct}% HRmax)\nResult: ${zoneName} (${range})`;
+};
+
+export const getHeartRateZoneTooltip = (
+  zone: HeartRateZone,
+  birthYear = ATHLETE_BIRTH_YEAR
+): string => {
+  const maxHr = getEstimatedMaxHeartRate(birthYear);
+  const age = Math.max(1, new Date().getFullYear() - birthYear);
+  const range = IS_CHINESE
+    ? ZONE_RANGE_DESC[zone].zh
+    : ZONE_RANGE_DESC[zone].en;
+  const zoneName = IS_CHINESE
+    ? HEART_RATE_ZONE_LABELS[zone].zh
+    : HEART_RATE_ZONE_LABELS[zone].en;
+
+  if (IS_CHINESE) {
+    return `${zoneName}\n心率区间：${range}\n估算 HRmax：约 ${maxHr} bpm`;
+  }
+
+  return `${zoneName}\nRange: ${range}\nEstimated max HR: ~${maxHr} bpm`;
+};
+
+export const getHeartRateZoneSummaryTooltip = (
+  zone: HeartRateZone,
+  count: number,
+  birthYear = ATHLETE_BIRTH_YEAR
+): string => {
+  const maxHr = getEstimatedMaxHeartRate(birthYear);
+  const range = IS_CHINESE
+    ? ZONE_RANGE_DESC[zone].zh
+    : ZONE_RANGE_DESC[zone].en;
+  const purpose = IS_CHINESE
+    ? ZONE_PURPOSE_DESC[zone].zh
+    : ZONE_PURPOSE_DESC[zone].en;
+  const zoneName = IS_CHINESE
+    ? HEART_RATE_ZONE_LABELS[zone].zh
+    : HEART_RATE_ZONE_LABELS[zone].en;
+
+  if (IS_CHINESE) {
+    return `${zoneName}\n心率区间：${range}\n训练意义：${purpose}\n本周次数：${count}`;
+  }
+
+  return `${zoneName}\nRange: ${range}\nPurpose: ${purpose}\nThis week: ${count} runs`;
 };
 
 const nike = 'rgb(224,237,94)'; // if you want to change the main color, modify this value in src/styles/variables.scss
