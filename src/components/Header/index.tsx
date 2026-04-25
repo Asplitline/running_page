@@ -17,7 +17,11 @@ const Header = () => {
       secondaryClassName={styles.homeHeaderRight}
       actionsClassName={styles.homeHeaderActions}
       title={
-        <SiteLogo to={siteUrl} className={styles.logoLink} imageClassName={styles.logo} />
+        <SiteLogo
+          to={siteUrl}
+          className={styles.logoLink}
+          imageClassName={styles.logo}
+        />
       }
       secondary={
         <nav aria-label="Site" className={styles.navLinks}>

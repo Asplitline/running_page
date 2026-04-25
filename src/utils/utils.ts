@@ -56,25 +56,19 @@ export interface Activity {
   elevation_gain: number | null;
   average_speed: number;
   average_cadence?: number | null;
-  cadence_trend?:
-    | {
-        first_half: number;
-        second_half: number;
-        direction: 'up' | 'down' | 'flat';
-      }
-    | null;
-  split_paces?:
-    | Array<{
-        km: number;
-        pace_seconds: number;
-      }>
-    | null;
-  split_heart_rates?:
-    | Array<{
-        km: number;
-        avg_hr: number | null;
-      }>
-    | null;
+  cadence_trend?: {
+    first_half: number;
+    second_half: number;
+    direction: 'up' | 'down' | 'flat';
+  } | null;
+  split_paces?: Array<{
+    km: number;
+    pace_seconds: number;
+  }> | null;
+  split_heart_rates?: Array<{
+    km: number;
+    avg_hr: number | null;
+  }> | null;
   streak: number;
 }
 

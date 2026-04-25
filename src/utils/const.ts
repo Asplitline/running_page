@@ -66,7 +66,8 @@ const ENGLISH_INFO_MESSAGE = (yearLength: number, year: string): string => {
 // English is not supported for location info messages yet
 const CHINESE_LOCATION_INFO_MESSAGE_FIRST =
   '跑过不少城市与路线；希望往后地图上，亮起的足迹越来越多。';
-const CHINESE_LOCATION_INFO_MESSAGE_SECOND = '别轻易停下——习惯比一次冲刺更难得。';
+const CHINESE_LOCATION_INFO_MESSAGE_SECOND =
+  '别轻易停下——习惯比一次冲刺更难得。';
 
 /** 首页「地点统计」侧栏底部一句，与上方中文说明语气一致 */
 const HOME_LOCATION_TAGLINE = IS_CHINESE
@@ -79,7 +80,9 @@ const HOME_LOCATION_TAGLINE = IS_CHINESE
 const getHeatmapFilterTitle = (item: string, filterName: string): string => {
   if (IS_CHINESE) {
     if (filterName === 'Year') {
-      return item === 'Total' ? '跑步热力图 · 全部年份' : `跑步热力图 · ${item} 年`;
+      return item === 'Total'
+        ? '跑步热力图 · 全部年份'
+        : `跑步热力图 · ${item} 年`;
     }
     if (filterName === 'City') {
       return `跑步热力图 · ${item}`;
@@ -208,7 +211,9 @@ export {
 
 export type HeartRateZone = 'z1' | 'z2' | 'z3' | 'z4' | 'z5';
 
-export const getEstimatedMaxHeartRate = (birthYear = ATHLETE_BIRTH_YEAR): number => {
+export const getEstimatedMaxHeartRate = (
+  birthYear = ATHLETE_BIRTH_YEAR
+): number => {
   const age = Math.max(1, new Date().getFullYear() - birthYear);
   return 220 - age;
 };
@@ -284,7 +289,9 @@ export const getRunIntensityTooltipFromAvgHr = (
   const age = Math.max(1, new Date().getFullYear() - birthYear);
   const zone = getHeartRateZone(averageHeartrate, maxHr);
   const pct = Math.round((averageHeartrate / maxHr) * 100);
-  const range = IS_CHINESE ? ZONE_RANGE_DESC[zone].zh : ZONE_RANGE_DESC[zone].en;
+  const range = IS_CHINESE
+    ? ZONE_RANGE_DESC[zone].zh
+    : ZONE_RANGE_DESC[zone].en;
   const zoneName = IS_CHINESE
     ? HEART_RATE_ZONE_LABELS[zone].zh
     : HEART_RATE_ZONE_LABELS[zone].en;

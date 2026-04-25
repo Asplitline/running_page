@@ -365,9 +365,18 @@ const ActivityList: React.FC = () => {
           titleClassName={styles.archiveTitle}
           secondaryClassName={styles.viewSwitcher}
           actionsClassName={styles.archiveActions}
-          title={<SiteLogo to="/" className={styles.logoLink} imageClassName={styles.logo} />}
+          title={
+            <SiteLogo
+              to="/"
+              className={styles.logoLink}
+              imageClassName={styles.logo}
+            />
+          }
           secondary={
-            <nav className='flex gap-0.5' aria-label={IS_CHINESE ? '概览视图' : 'Training archive views'}>
+            <nav
+              className="flex gap-0.5"
+              aria-label={IS_CHINESE ? '概览视图' : 'Training archive views'}
+            >
               {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
                 <ViewButton
                   key={mode}

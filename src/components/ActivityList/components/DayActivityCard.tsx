@@ -91,7 +91,9 @@ const DayActivityCard = ({
     <article className={`${styles.recentCard} ${styles.dayCard}`}>
       <div className={styles.recentCardHeader}>
         <div>
-          <p className={styles.recentDate}>{formatDateLong(activity.parsedDate)}</p>
+          <p className={styles.recentDate}>
+            {formatDateLong(activity.parsedDate)}
+          </p>
           <h3 className={styles.recentTitle}>
             {activity.name || (IS_CHINESE ? '跑步' : 'Run')}
           </h3>
@@ -128,7 +130,9 @@ const DayActivityCard = ({
           <dt>{IS_CHINESE ? '心率' : 'HR'}</dt>
           <dd>
             {activity.average_heartrate ? (
-              <span className={getHeartRateToneClass(activity.average_heartrate)}>
+              <span
+                className={getHeartRateToneClass(activity.average_heartrate)}
+              >
                 {activity.average_heartrate} bpm
               </span>
             ) : (
@@ -150,7 +154,11 @@ const DayActivityCard = ({
         </div>
         <div>
           <dt>{IS_CHINESE ? '步频' : 'Cadence'}</dt>
-          <dd>{activity.average_cadence ? `${activity.average_cadence} spm` : '--'}</dd>
+          <dd>
+            {activity.average_cadence
+              ? `${activity.average_cadence} spm`
+              : '--'}
+          </dd>
         </div>
       </dl>
       {splitRows.length > 0 ? (
@@ -164,7 +172,9 @@ const DayActivityCard = ({
             {splitRows.map((split) => (
               <div key={split.km} className={styles.splitRow}>
                 <span className={styles.splitKm}>{split.km}K</span>
-                <span className={styles.splitValue}>{formatSplitPace(split.pace)}</span>
+                <span className={styles.splitValue}>
+                  {formatSplitPace(split.pace)}
+                </span>
                 <span
                   className={`${styles.splitValue} ${getHeartRateToneClass(split.heartRate)}`}
                 >
@@ -178,7 +188,9 @@ const DayActivityCard = ({
               <button
                 type="button"
                 className={styles.splitPageButton}
-                onClick={() => onPageChange(activity.run_id, Math.max(0, currentPage - 1))}
+                onClick={() =>
+                  onPageChange(activity.run_id, Math.max(0, currentPage - 1))
+                }
                 disabled={currentPage === 0}
                 aria-label={IS_CHINESE ? '上一页分段' : 'Previous split page'}
               >
@@ -191,7 +203,10 @@ const DayActivityCard = ({
                 type="button"
                 className={styles.splitPageButton}
                 onClick={() =>
-                  onPageChange(activity.run_id, Math.min(totalPages - 1, currentPage + 1))
+                  onPageChange(
+                    activity.run_id,
+                    Math.min(totalPages - 1, currentPage + 1)
+                  )
                 }
                 disabled={currentPage >= totalPages - 1}
                 aria-label={IS_CHINESE ? '下一页分段' : 'Next split page'}

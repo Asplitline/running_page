@@ -52,7 +52,11 @@
 
 .navLink {
   border: 1px solid var(--ui-control-border);
-  background: color-mix(in oklch, var(--ui-control-surface) 94%, var(--color-background) 6%);
+  background: color-mix(
+    in oklch,
+    var(--ui-control-surface) 94%,
+    var(--color-background) 6%
+  );
   color: var(--ui-text-secondary);
   font-size: 0.86rem;
   font-weight: 600;
@@ -75,8 +79,16 @@
 .navLink:hover,
 .navLink:focus-visible {
   transform: none;
-  border-color: color-mix(in oklch, var(--ui-accent-primary) 26%, var(--ui-control-border) 74%);
-  background: color-mix(in oklch, var(--ui-surface-strong) 74%, var(--ui-control-surface) 26%);
+  border-color: color-mix(
+    in oklch,
+    var(--ui-accent-primary) 26%,
+    var(--ui-control-border) 74%
+  );
+  background: color-mix(
+    in oklch,
+    var(--ui-surface-strong) 74%,
+    var(--ui-control-surface) 26%
+  );
   color: var(--ui-text);
   outline: none;
 }

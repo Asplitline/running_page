@@ -32,7 +32,6 @@
   --accent: #2ea79a;
 }
 
-
 .overviewStickyInner,
 .section {
   max-width: 1180px;
@@ -157,7 +156,9 @@
   letter-spacing: -0.035em;
   max-width: 8ch;
   color: var(--ui-text);
-  transition: font-size 0.24s ease, line-height 0.24s ease;
+  transition:
+    font-size 0.24s ease,
+    line-height 0.24s ease;
 }
 
 .archiveTitle > h1 {
@@ -182,7 +183,6 @@
   min-width: 0;
 }
 
-
 .summaryLogo {
   width: 2.2rem;
   height: 2.2rem;
@@ -203,7 +203,11 @@
 .themeToggleButton {
   appearance: none;
   border: 1px solid var(--ui-control-border);
-  background: color-mix(in oklch, var(--ui-control-surface) 94%, var(--color-background) 6%);
+  background: color-mix(
+    in oklch,
+    var(--ui-control-surface) 94%,
+    var(--color-background) 6%
+  );
   color: var(--ui-text-secondary);
   width: 44px;
   height: 44px;
@@ -220,7 +224,11 @@
 
 .homeButton {
   border: 1px solid var(--ui-control-border);
-  background: color-mix(in oklch, var(--ui-control-surface) 94%, var(--color-background) 6%);
+  background: color-mix(
+    in oklch,
+    var(--ui-control-surface) 94%,
+    var(--color-background) 6%
+  );
   color: var(--ui-text-secondary);
   min-width: 44px;
   height: 44px;
@@ -241,8 +249,16 @@
 .homeButton:hover,
 .homeButton:focus-visible {
   transform: none;
-  border-color: color-mix(in oklch, var(--ui-accent-primary) 28%, var(--ui-control-border) 72%);
-  background: color-mix(in oklch, var(--ui-surface-strong) 72%, var(--ui-control-surface) 28%);
+  border-color: color-mix(
+    in oklch,
+    var(--ui-accent-primary) 28%,
+    var(--ui-control-border) 72%
+  );
+  background: color-mix(
+    in oklch,
+    var(--ui-surface-strong) 72%,
+    var(--ui-control-surface) 28%
+  );
   color: var(--ui-text);
   box-shadow: none;
 }
@@ -294,7 +310,11 @@
   padding: 4px;
   border-radius: 14px;
   border: 1px solid color-mix(in oklch, var(--ui-border) 88%, transparent);
-  background: color-mix(in oklch, var(--ui-control-surface) 96%, var(--color-background) 4%);
+  background: color-mix(
+    in oklch,
+    var(--ui-control-surface) 96%,
+    var(--color-background) 4%
+  );
   transition: margin 0.24s ease;
 }
 
@@ -379,8 +399,16 @@
 }
 
 .viewButtonActive {
-  background: color-mix(in oklch, var(--ui-accent-primary) 8%, var(--ui-control-surface) 92%);
-  border-color: color-mix(in oklch, var(--ui-accent-primary) 32%, var(--ui-border) 68%);
+  background: color-mix(
+    in oklch,
+    var(--ui-accent-primary) 8%,
+    var(--ui-control-surface) 92%
+  );
+  border-color: color-mix(
+    in oklch,
+    var(--ui-accent-primary) 32%,
+    var(--ui-border) 68%
+  );
   color: color-mix(in oklch, var(--ui-accent-primary) 52%, var(--ui-text) 48%);
   /* box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--ui-accent-primary) 22%, transparent); */
 }
@@ -511,7 +539,11 @@
 
 .recentCard:hover {
   transform: none;
-  border-color: color-mix(in oklch, var(--ui-text-secondary) 24%, var(--card-outline) 76%);
+  border-color: color-mix(
+    in oklch,
+    var(--ui-text-secondary) 24%,
+    var(--card-outline) 76%
+  );
 }
 
 .dayCard {
@@ -890,7 +922,11 @@
 }
 
 .periodStats > div:nth-child(3) strong {
-  color: color-mix(in oklch, var(--ui-accent-secondary) 72%, var(--ui-text) 28%);
+  color: color-mix(
+    in oklch,
+    var(--ui-accent-secondary) 72%,
+    var(--ui-text) 28%
+  );
 }
 
 .periodChart {
@@ -932,7 +968,11 @@
 }
 
 .yearButtonActive {
-  background: color-mix(in oklch, var(--ui-text) 18%, var(--ui-control-surface) 82%);
+  background: color-mix(
+    in oklch,
+    var(--ui-text) 18%,
+    var(--ui-control-surface) 82%
+  );
   color: var(--ui-text);
   border-color: color-mix(in oklch, var(--ui-text) 34%, var(--ui-border) 66%);
 }

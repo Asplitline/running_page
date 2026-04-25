@@ -72,10 +72,7 @@ const YearStat = ({
   const paceLabel = IS_CHINESE ? '平均配速' : 'avg pace';
   const heartLabel = IS_CHINESE ? '平均心率' : 'avg HR';
   const streakLabel = IS_CHINESE ? '连续跑步' : 'streak';
-  const paceText =
-    avgPaceStr != null
-      ? `${avgPaceStr}/${DIST_UNIT}`
-      : '—';
+  const paceText = avgPaceStr != null ? `${avgPaceStr}/${DIST_UNIT}` : '—';
   const heartText = hasHeartRate && avgHeartRate ? `${avgHeartRate} bpm` : '—';
   const streakText = `${streak} days`;
   const elevLabel = IS_CHINESE ? '总爬升' : 'elevation';

@@ -55,7 +55,9 @@ const PeriodCard = ({
           <span>{ACTIVITY_TOTAL.AVERAGE_SPEED_TITLE}</span>
           <strong>
             {summary.totalDistance > 0
-              ? formatPaceSeconds(Math.round(summary.totalTime / summary.totalDistance))
+              ? formatPaceSeconds(
+                  Math.round(summary.totalTime / summary.totalDistance)
+                )
               : `0:00 min/${DIST_UNIT}`}
           </strong>
         </div>
