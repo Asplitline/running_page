@@ -24,6 +24,34 @@
   /* fonts */
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+  /* ui tokens (shared) */
+  --ui-surface: #111827;
+  --ui-surface-strong: #1f2937;
+  --ui-border: #2a3648;
+  --ui-border-soft: color-mix(in oklch, #2a3648 58%, transparent);
+  --ui-text: #e5e7eb;
+  --ui-text-secondary: #94a3b8;
+  --ui-text-muted: #64748b;
+  --ui-highlight: #34d399;
+  --ui-highlight-soft: color-mix(in oklch, #34d399 16%, #0b1220);
+  --ui-accent-primary: #34d399;
+  --ui-accent-secondary: #fb923c;
+  --ui-accent-warning: #fb7185;
+  --ui-accent-neutral: #cbd5e1;
+  --ui-heart-z1: #5fa8a0;
+  --ui-heart-z2: #34d399;
+  --ui-heart-z3: #2dd4bf;
+  --ui-heart-z4: #fb923c;
+  --ui-heart-z5: #fb7185;
+  --ui-shadow: 0 20px 52px color-mix(in oklch, #020617 66%, transparent);
+  --ui-control-border: color-mix(in oklch, var(--ui-border) 76%, transparent);
+  --ui-control-surface: color-mix(in oklch, var(--ui-surface) 88%, transparent);
+  --ui-float-surface: color-mix(in oklch, var(--color-background) 82%, transparent);
+  --ui-float-border: color-mix(in oklch, var(--ui-border) 70%, transparent);
+  --ui-page-background:
+    radial-gradient(circle at top left, color-mix(in oklch, #fb923c 10%, #0f172a), transparent 36%),
+    radial-gradient(circle at top right, color-mix(in oklch, #34d399 10%, #0b1220), transparent 34%),
+    linear-gradient(180deg, #0b1220 0%, #0b1220 40%, #0f172a 100%);
 }
 
 /* 1. System Theme (Base) */
@@ -44,6 +72,29 @@
     --svg-special-color2: #c5756b;
     --font-sans: 'IBM Plex Sans', sans-serif;
     --font-mono: 'IBM Plex Mono', monospace;
+    --ui-surface: #f8fafc;
+    --ui-surface-strong: #eef2f7;
+    --ui-border: #cbd5e1;
+    --ui-border-soft: color-mix(in oklch, #94a3b8 58%, transparent);
+    --ui-text: #0f172a;
+    --ui-text-secondary: #475569;
+    --ui-text-muted: #64748b;
+    --ui-highlight: #16a34a;
+    --ui-highlight-soft: color-mix(in oklch, #22c55e 18%, #f1f5f9);
+    --ui-accent-primary: #16a34a;
+    --ui-accent-secondary: #ea580c;
+    --ui-accent-warning: #e11d48;
+    --ui-accent-neutral: #334155;
+    --ui-heart-z1: #3b7d77;
+    --ui-heart-z2: #16a34a;
+    --ui-heart-z3: #0f766e;
+    --ui-heart-z4: #ea580c;
+    --ui-heart-z5: #e11d48;
+    --ui-shadow: 0 18px 42px color-mix(in oklch, #94a3b8 20%, transparent);
+    --ui-page-background:
+      radial-gradient(circle at top left, color-mix(in oklch, #fb923c 10%, #f8fafc), transparent 42%),
+      radial-gradient(circle at top right, color-mix(in oklch, #22c55e 12%, #f8fafc), transparent 38%),
+      linear-gradient(180deg, #f8fafc 0%, #f1f5f9 38%, #f8fafc 100%);
   }
 }
 
@@ -65,6 +116,29 @@
     --svg-special-color2: #f56c6c;
     --font-sans: 'IBM Plex Sans', sans-serif;
     --font-mono: 'IBM Plex Mono', monospace;
+    --ui-surface: #111827;
+    --ui-surface-strong: #1f2937;
+    --ui-border: #2a3648;
+    --ui-border-soft: color-mix(in oklch, #2a3648 58%, transparent);
+    --ui-text: #e5e7eb;
+    --ui-text-secondary: #94a3b8;
+    --ui-text-muted: #64748b;
+    --ui-highlight: #34d399;
+    --ui-highlight-soft: color-mix(in oklch, #34d399 16%, #0b1220);
+    --ui-accent-primary: #34d399;
+    --ui-accent-secondary: #fb923c;
+    --ui-accent-warning: #fb7185;
+    --ui-accent-neutral: #cbd5e1;
+    --ui-heart-z1: #5fa8a0;
+    --ui-heart-z2: #34d399;
+    --ui-heart-z3: #2dd4bf;
+    --ui-heart-z4: #fb923c;
+    --ui-heart-z5: #fb7185;
+    --ui-shadow: 0 20px 52px color-mix(in oklch, #020617 66%, transparent);
+    --ui-page-background:
+      radial-gradient(circle at top left, color-mix(in oklch, #fb923c 10%, #0f172a), transparent 36%),
+      radial-gradient(circle at top right, color-mix(in oklch, #34d399 10%, #0b1220), transparent 34%),
+      linear-gradient(180deg, #0b1220 0%, #0b1220 40%, #0f172a 100%);
   }
 }
 
@@ -86,6 +160,29 @@
   --svg-special-color2: #c5756b;
   --font-sans: 'IBM Plex Sans', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
+  --ui-surface: #f8fafc;
+  --ui-surface-strong: #eef2f7;
+  --ui-border: #cbd5e1;
+  --ui-border-soft: color-mix(in oklch, #94a3b8 58%, transparent);
+  --ui-text: #0f172a;
+  --ui-text-secondary: #475569;
+  --ui-text-muted: #64748b;
+  --ui-highlight: #16a34a;
+  --ui-highlight-soft: color-mix(in oklch, #22c55e 18%, #f1f5f9);
+  --ui-accent-primary: #16a34a;
+  --ui-accent-secondary: #ea580c;
+  --ui-accent-warning: #e11d48;
+  --ui-accent-neutral: #334155;
+  --ui-heart-z1: #3b7d77;
+  --ui-heart-z2: #16a34a;
+  --ui-heart-z3: #0f766e;
+  --ui-heart-z4: #ea580c;
+  --ui-heart-z5: #e11d48;
+  --ui-shadow: 0 18px 42px color-mix(in oklch, #94a3b8 20%, transparent);
+  --ui-page-background:
+    radial-gradient(circle at top left, color-mix(in oklch, #fb923c 10%, #f8fafc), transparent 42%),
+    radial-gradient(circle at top right, color-mix(in oklch, #22c55e 12%, #f8fafc), transparent 38%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 38%, #f8fafc 100%);
 }
 
 [data-theme='dark'] {
@@ -105,6 +202,29 @@
   --svg-special-color2: #f56c6c;
   --font-sans: 'IBM Plex Sans', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
+  --ui-surface: #111827;
+  --ui-surface-strong: #1f2937;
+  --ui-border: #2a3648;
+  --ui-border-soft: color-mix(in oklch, #2a3648 58%, transparent);
+  --ui-text: #e5e7eb;
+  --ui-text-secondary: #94a3b8;
+  --ui-text-muted: #64748b;
+  --ui-highlight: #34d399;
+  --ui-highlight-soft: color-mix(in oklch, #34d399 16%, #0b1220);
+  --ui-accent-primary: #34d399;
+  --ui-accent-secondary: #fb923c;
+  --ui-accent-warning: #fb7185;
+  --ui-accent-neutral: #cbd5e1;
+  --ui-heart-z1: #5fa8a0;
+  --ui-heart-z2: #34d399;
+  --ui-heart-z3: #2dd4bf;
+  --ui-heart-z4: #fb923c;
+  --ui-heart-z5: #fb7185;
+  --ui-shadow: 0 20px 52px color-mix(in oklch, #020617 66%, transparent);
+  --ui-page-background:
+    radial-gradient(circle at top left, color-mix(in oklch, #fb923c 10%, #0f172a), transparent 36%),
+    radial-gradient(circle at top right, color-mix(in oklch, #34d399 10%, #0b1220), transparent 34%),
+    linear-gradient(180deg, #0b1220 0%, #0b1220 40%, #0f172a 100%);
 }
 
 @layer base {

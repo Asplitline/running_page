@@ -1,0 +1,14 @@
+.logoLink {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.logo {
+  height: 4rem;
+  width: 4rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklch, var(--ui-border) 50%, transparent);
+  object-fit: cover;
+  flex-shrink: 0;
+}

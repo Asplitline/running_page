@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Manrope:wght@500;600;700&display=swap');
+
+.stat {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 0.4rem;
+}
+
+.value {
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-weight: 700;
+  color: var(--ui-text);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.valueDefault {
+  font-size: clamp(1.25rem, 6vw, 2.15rem);
+}
+
+.valueCity {
+  font-size: clamp(1rem, 4.2vw, 1.45rem);
+}
+
+.valuePrimary {
+  font-style: italic;
+  color: var(--ui-text);
+}
+
+.valueSecondary {
+  font-style: italic;
+  color: var(--ui-text);
+}
+
+.valueMeta {
+  font-style: normal;
+  font-weight: 650;
+  color: var(--ui-text-secondary);
+}
+
+.desc {
+  font-family: 'Manrope', var(--font-sans), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-style: normal;
+  color: var(--ui-text-muted);
+  letter-spacing: 0.01em;
+}

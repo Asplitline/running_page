@@ -1,0 +1,66 @@
+/* 首页栅格与主标题：与 summary 概览标题气质对齐（内容结构不变） */
+
+.colSide {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.colMap {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@media (min-width: 1024px) {
+  .colSide {
+    flex: 0 0 calc(33.333% - 11px);
+    max-width: calc(33.333% - 11px);
+    /* 与右侧地图列等高，否则 sticky 标题会在侧栏内容滚完后提前失效 */
+    align-self: stretch;
+  }
+
+  .colMap {
+    flex: 1 1 0;
+    max-width: calc(66.666% - 11px);
+  }
+}
+
+.titleSticky {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  margin: 0 0 clamp(0.7rem, 2vw, 1rem);
+  padding-top: clamp(0.22rem, 1vw, 0.45rem);
+  padding-bottom: clamp(0.45rem, 1.2vw, 0.65rem);
+  /* background: linear-gradient(180deg, #16233b 0%, #0f1a2f 100%); */
+  /* border-bottom: 1px solid color-mix(in oklch, var(--ui-accent-primary) 40%, transparent); */
+  box-shadow: none;
+}
+
+.titleStickyInner {
+  width: 100%;
+}
+
+.titleSticky::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklch, var(--ui-accent-primary) 22%, transparent),
+    transparent
+  );
+}
+
+@media (max-width: 768px) {
+  .titleSticky {
+    margin-inline: calc(-1 * min(16px, 4vw));
+    padding-inline: min(16px, 4vw);
+    margin-bottom: 0.85rem;
+  }
+}

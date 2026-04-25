@@ -54,16 +54,48 @@ const RICH_TITLE = false;
 const IS_CHINESE = true;
 const USE_ANIMATION_FOR_GRID = false;
 const CHINESE_INFO_MESSAGE = (yearLength: number, year: string): string => {
-  const yearStr = year === 'Total' ? '所有' : ` ${year} `;
-  return `记录自己跑步 ${yearLength} 年了，下面列表展示的是${yearStr}的数据`;
+  const scope = year === 'Total' ? '全部年份' : `${year} 年`;
+  return `跑步记录已满 ${yearLength} 年。下方列表与地图展示的是「${scope}」的活动。`;
 };
-const ENGLISH_INFO_MESSAGE = (yearLength: number, year: string): string =>
-  `Running Journey with ${yearLength} Years, the table shows year ${year} data`;
+const ENGLISH_INFO_MESSAGE = (yearLength: number, year: string): string => {
+  const yearLabel = year === 'Total' ? 'all years' : `calendar year ${year}`;
+  const yWord = yearLength === 1 ? 'year' : 'years';
+  return `${yearLength} ${yWord} of running on record. The table and map show activities for ${yearLabel}.`;
+};
 
 // English is not supported for location info messages yet
 const CHINESE_LOCATION_INFO_MESSAGE_FIRST =
-  '跑过了一些地方，希望随着时间推移，点亮的地方越来越多';
-const CHINESE_LOCATION_INFO_MESSAGE_SECOND = '不要停下来，不要停下奔跑的脚步';
+  '跑过不少城市与路线；希望往后地图上，亮起的足迹越来越多。';
+const CHINESE_LOCATION_INFO_MESSAGE_SECOND = '别轻易停下——习惯比一次冲刺更难得。';
+
+/** 首页「地点统计」侧栏底部一句，与上方中文说明语气一致 */
+const HOME_LOCATION_TAGLINE = IS_CHINESE
+  ? '「明天再跑」很容易变成不再开始；今天能迈出一小步，就很好。'
+  : '"I\'ll run tomorrow" often means never starting. One small step today still counts.';
+
+/**
+ * 地图底部标题：随筛选维度与中英文切换，避免混用英文 “Running Heatmap” 与中文地名。
+ */
+const getHeatmapFilterTitle = (item: string, filterName: string): string => {
+  if (IS_CHINESE) {
+    if (filterName === 'Year') {
+      return item === 'Total' ? '跑步热力图 · 全部年份' : `跑步热力图 · ${item} 年`;
+    }
+    if (filterName === 'City') {
+      return `跑步热力图 · ${item}`;
+    }
+    return `跑步热力图 · ${item}`;
+  }
+  if (filterName === 'Year') {
+    return item === 'Total'
+      ? 'Running heatmap · all years'
+      : `Running heatmap · ${item}`;
+  }
+  if (filterName === 'City') {
+    return `Running heatmap · ${item} (city)`;
+  }
+  return `Running heatmap · ${item} (activity name)`;
+};
 
 const INFO_MESSAGE = IS_CHINESE ? CHINESE_INFO_MESSAGE : ENGLISH_INFO_MESSAGE;
 const FULL_MARATHON_RUN_TITLE = IS_CHINESE ? '全程马拉松' : 'Full Marathon';
@@ -103,6 +135,7 @@ const HOME_PAGE_TITLE = IS_CHINESE ? '首页' : 'Home';
 const LOADING_TEXT = IS_CHINESE ? '加载中...' : 'Loading...';
 const NO_ROUTE_DATA = IS_CHINESE ? '暂无路线数据' : 'No route data';
 const INVALID_ROUTE_DATA = IS_CHINESE ? '路线数据无效' : 'Invalid route data';
+const ATHLETE_BIRTH_YEAR = 1997;
 
 const ACTIVITY_TYPES = {
   RUN_GENERIC_TITLE,
@@ -147,6 +180,8 @@ export {
   GOOGLE_ANALYTICS_TRACKING_ID,
   CHINESE_LOCATION_INFO_MESSAGE_FIRST,
   CHINESE_LOCATION_INFO_MESSAGE_SECOND,
+  HOME_LOCATION_TAGLINE,
+  getHeatmapFilterTitle,
   MAPBOX_TOKEN,
   MUNICIPALITY_CITIES_ARR,
   MAP_LAYER_LIST,
@@ -168,6 +203,96 @@ export {
   LOADING_TEXT,
   NO_ROUTE_DATA,
   INVALID_ROUTE_DATA,
+  ATHLETE_BIRTH_YEAR,
+};
+
+export type HeartRateZone = 'z1' | 'z2' | 'z3' | 'z4' | 'z5';
+
+export const getEstimatedMaxHeartRate = (birthYear = ATHLETE_BIRTH_YEAR): number => {
+  const age = Math.max(1, new Date().getFullYear() - birthYear);
+  return 220 - age;
+};
+
+export const getHeartRateZone = (
+  heartRate: number,
+  maxHeartRate = getEstimatedMaxHeartRate()
+): HeartRateZone => {
+  const ratio = heartRate / maxHeartRate;
+  if (ratio < 0.6) return 'z1';
+  if (ratio < 0.7) return 'z2';
+  if (ratio < 0.8) return 'z3';
+  if (ratio < 0.9) return 'z4';
+  return 'z5';
+};
+
+/** 按平均心率相对 HRmax 的区间，给单次跑步打训练类型标签（与 Polar/Garmin 五区模型一致） */
+export const HEART_RATE_ZONE_LABELS: Record<
+  HeartRateZone,
+  { zh: string; en: string }
+> = {
+  z1: { zh: 'Z1 恢复跑', en: 'Z1 Recovery' },
+  z2: { zh: 'Z2 有氧跑', en: 'Z2 Aerobic' },
+  z3: { zh: 'Z3 节奏跑', en: 'Z3 Tempo' },
+  z4: { zh: 'Z4 阈值跑', en: 'Z4 Threshold' },
+  z5: { zh: 'Z5 极限跑', en: 'Z5 VO2max' },
+};
+
+export const getRunIntensityLabelFromAvgHr = (
+  averageHeartrate?: number | null,
+  maxHeartRate = getEstimatedMaxHeartRate()
+): { zone: HeartRateZone; label: string } | null => {
+  if (averageHeartrate == null || Number.isNaN(averageHeartrate)) {
+    return null;
+  }
+  const zone = getHeartRateZone(averageHeartrate, maxHeartRate);
+  const { zh, en } = HEART_RATE_ZONE_LABELS[zone];
+  return { zone, label: IS_CHINESE ? zh : en };
+};
+
+const ZONE_RANGE_DESC: Record<HeartRateZone, { zh: string; en: string }> = {
+  z1: {
+    zh: '低于最大心率的 60%',
+    en: 'below 60% of max HR',
+  },
+  z2: {
+    zh: '最大心率的 60%–70%',
+    en: '60–70% of max HR',
+  },
+  z3: {
+    zh: '最大心率的 70%–80%',
+    en: '70–80% of max HR',
+  },
+  z4: {
+    zh: '最大心率的 80%–90%',
+    en: '80–90% of max HR',
+  },
+  z5: {
+    zh: '最大心率的 90% 及以上',
+    en: '90% of max HR and above',
+  },
+};
+
+/** 解释「为什么是这个标签」：依据平均心率与估算 HRmax 的百分比落在哪一区 */
+export const getRunIntensityTooltipFromAvgHr = (
+  averageHeartrate?: number | null,
+  birthYear = ATHLETE_BIRTH_YEAR
+): string | null => {
+  if (averageHeartrate == null || Number.isNaN(averageHeartrate)) {
+    return null;
+  }
+  const maxHr = getEstimatedMaxHeartRate(birthYear);
+  const age = Math.max(1, new Date().getFullYear() - birthYear);
+  const zone = getHeartRateZone(averageHeartrate, maxHr);
+  const pct = Math.round((averageHeartrate / maxHr) * 100);
+  const range = IS_CHINESE ? ZONE_RANGE_DESC[zone].zh : ZONE_RANGE_DESC[zone].en;
+  const zoneName = IS_CHINESE
+    ? HEART_RATE_ZONE_LABELS[zone].zh
+    : HEART_RATE_ZONE_LABELS[zone].en;
+
+  if (IS_CHINESE) {
+    return `标签来自本次「平均心率」相对「估算最大心率」的区间。估算公式：220 − 年龄（按出生年 ${birthYear}，当前约 ${age} 岁 → 约 ${maxHr} bpm）。本次平均 ${Math.round(averageHeartrate)} bpm，约 ${pct}% HRmax，落在 ${zoneName}（${range}）。`;
+  }
+  return `This tag uses your average heart rate vs an estimated max HR (220 − age; birth year ${birthYear}, ~${age} y → ~${maxHr} bpm). Average ${Math.round(averageHeartrate)} bpm ≈ ${pct}% HRmax → ${zoneName} (${range}).`;
 };
 
 const nike = 'rgb(224,237,94)'; // if you want to change the main color, modify this value in src/styles/variables.scss

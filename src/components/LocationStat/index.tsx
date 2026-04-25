@@ -2,6 +2,7 @@ import YearStat from '@/components/YearStat';
 import {
   CHINESE_LOCATION_INFO_MESSAGE_FIRST,
   CHINESE_LOCATION_INFO_MESSAGE_SECOND,
+  HOME_LOCATION_TAGLINE,
 } from '@/utils/const';
 import CitiesStat from './CitiesStat';
 import LocationSummary from './LocationSummary';
@@ -28,7 +29,7 @@ const LocationStat = ({
         .
         <br />
         <br />
-        Yesterday you said tomorrow.
+        {HOME_LOCATION_TAGLINE}
       </p>
     </section>
     <hr />

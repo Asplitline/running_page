@@ -1,100 +1,175 @@
-@media only screen and (max-width: 768px) {
-  .tableContainer {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 
-  .runTable {
-    min-width: 650px;
-    font-size: 0.8rem;
-  }
-
-  .runTable th,
-  .runTable td {
-    padding: 0.25rem !important;
-    white-space: nowrap;
-    min-width: 60px;
-  }
-
-  .runTable th:first-child,
-  .runTable td:first-child {
-    min-width: 100px;
-  }
-
-  .runTable th:last-child,
-  .runTable td:last-child {
-    min-width: 80px;
-  }
+.tableContainer {
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: clamp(1rem, 2.5vw, 1.75rem);
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  border: 1px solid color-mix(in oklch, var(--ui-border) 50%, transparent);
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--ui-surface) 88%, transparent);
+  box-shadow: var(--ui-shadow);
 }
 
 .runTable {
   width: 100%;
-  margin: 2rem 0 5rem 0;
-  color: var(--color-run-table-thead);
-  background-color: var(--color-background);
-  font-family: var(--font-mono);
+  margin: 0;
+  border-collapse: collapse;
+  font-family: 'Manrope', var(--font-sans), system-ui, sans-serif;
+  font-size: 0.875rem;
+  color: var(--ui-text);
+  background: transparent;
   table-layout: auto;
-  :is(thead) {
-    color: var(--color-run-table-thead);
+}
 
-    :is(th) {
-      padding: 0.5rem;
-      white-space: nowrap;
-      text-align: center;
-    }
+.runTable :is(thead th) {
+  padding: 0.65rem 0.5rem;
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ui-text-muted);
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--ui-border-soft);
+  vertical-align: middle;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease;
+}
 
-    :is(th):first-child {
-      text-align: left;
-    }
+.runTable thead th:first-child {
+  width: 2rem;
+  padding-left: 0.75rem;
+  cursor: default;
+}
 
-    :is(th):last-child {
-      text-align: right;
-    }
-  }
-  :is(th, td) {
-    white-space: nowrap;
-    text-align: center;
-  }
+.runTable thead th:not(:first-child) {
+  cursor: pointer;
+  user-select: none;
+}
 
-  :is(th, td):first-child {
-    text-align: left;
-  }
+.runTable thead th:not(:first-child):hover,
+.runTable thead th:not(:first-child):focus-visible {
+  color: var(--ui-accent-primary);
+  background: color-mix(in oklch, var(--ui-highlight-soft) 70%, transparent);
+}
 
-  :is(th, td):last-child {
-    text-align: right;
-  }
+.runTable :is(th, td) {
+  white-space: nowrap;
+  text-align: center;
+}
+
+.runTable :is(th, td):first-child {
+  text-align: left;
+}
+
+.runTable :is(th, td):last-child {
+  text-align: right;
 }
 
 .runRow {
   cursor: pointer;
-  :is(td) {
-    padding: 0.5rem;
-    border: 0;
-    text-align: center; /* 默认居中 */
-  }
-
-  :is(td):first-child {
-    text-align: left;
-  }
-
-  :is(td):last-child {
-    text-align: right;
-  }
-
-  &:hover {
-    background-color: var(--color-run-row-hover-background);
-  }
+  transition: background-color 0.18s ease;
 }
 
-.selected {
-  color: var(--color-primary);
+.runRow :is(td) {
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--ui-border-soft);
+  color: var(--ui-text-secondary);
+  vertical-align: middle;
 }
 
-.tableContainer {
-  width: 100%;
-  overflow-x: auto;
+.runRow :is(td):first-child {
+  padding-left: 0.75rem;
+  color: var(--ui-text);
+  font-weight: 600;
+  max-width: min(42vw, 280px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.runRow :is(td):last-child {
+  padding-right: 0.75rem;
+}
+
+.runRow :is(td):not(:first-child):not(:last-child) {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.runRow:hover :is(td) {
+  background: color-mix(in oklch, var(--ui-surface-strong) 85%, transparent);
+}
+
+.runRow:last-child :is(td) {
+  border-bottom: none;
+}
+
+.selected :is(td) {
+  background: color-mix(in oklch, var(--ui-highlight-soft) 50%, transparent);
+  color: var(--ui-text);
+}
+
+.selected :is(td):first-child {
+  color: var(--ui-accent-primary);
 }
 
 .runDate {
-  color: var(--color-run-date);
+  color: var(--ui-text-muted);
+  font-weight: 500;
+}
+
+.selected .runDate {
+  color: var(--ui-text-secondary);
+}
+
+@media only screen and (max-width: 768px) {
+  .tableContainer {
+    margin-top: 1rem;
+    margin-bottom: 2.5rem;
+    border-radius: 8px;
+  }
+
+  .runTable {
+    min-width: 620px;
+    font-size: 0.8125rem;
+  }
+
+  .runTable :is(thead th) {
+    padding: 0.45rem 0.35rem;
+    font-size: 0.62rem;
+  }
+
+  .runRow :is(td) {
+    padding: 0.45rem 0.35rem;
+  }
+}
+
+@media only screen and (max-width: 480px) {
+  .runTable {
+    min-width: 540px;
+    font-size: 0.75rem;
+  }
+
+  .runTable :is(thead th),
+  .runRow :is(td) {
+    padding: 0.35rem 0.25rem;
+    min-width: 48px;
+  }
+
+  .runTable :is(thead th):first-child,
+  .runRow :is(td):first-child {
+    min-width: 88px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runTable :is(thead th),
+  .runRow {
+    transition: none;
+  }
 }

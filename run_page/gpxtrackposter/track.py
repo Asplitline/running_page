@@ -6,6 +6,8 @@
 # license that can be found in the LICENSE file.
 
 import datetime
+import json
+import math
 from datetime import timezone
 import os
 from collections import namedtuple
@@ -34,6 +36,7 @@ IGNORE_BEFORE_SAVING = os.getenv("IGNORE_BEFORE_SAVING", False)
 # And to represent values up to 360° (or -180° to 180°), each 'degree' represents 2^32 / 360 = 11930465.
 # So dividing latitude and longitude (int32) value by 11930465 will give the decimal value.
 SEMICIRCLE = 11930465
+RUNNING_CADENCE_MULTIPLIER = 2
 
 
 class Track:
@@ -49,6 +52,11 @@ class Track:
         self.length = 0
         self.special = False
         self.average_heartrate = None
+        self.max_heartrate = None
+        self.average_cadence = None
+        self.cadence_trend = None
+        self.split_paces = []
+        self.split_heart_rates = []
         self.elevation_gain = None
         self.moving_dict = {}
         self.run_id = 0
@@ -147,6 +155,26 @@ class Track:
             "elapsed_time": activity.elapsed_time,
             "average_speed": activity.average_speed or 0,
         }
+        self.average_heartrate = (
+            activity.average_heartrate if hasattr(activity, "average_heartrate") else None
+        )
+        self.max_heartrate = (
+            activity.max_heartrate if hasattr(activity, "max_heartrate") else None
+        )
+        self.average_cadence = (
+            activity.average_cadence if hasattr(activity, "average_cadence") else None
+        )
+        self.cadence_trend = (
+            activity.cadence_trend if hasattr(activity, "cadence_trend") else None
+        )
+        self.split_paces = (
+            activity.split_paces if hasattr(activity, "split_paces") else []
+        )
+        self.split_heart_rates = (
+            activity.split_heart_rates
+            if hasattr(activity, "split_heart_rates")
+            else []
+        )
 
     def bbox(self):
         """Compute the smallest rectangle that contains the entire track (border box)."""
@@ -246,12 +274,12 @@ class Track:
         for t in gpx.tracks:
             for s in t.segments:
                 moving_time += self._calc_moving_time(s.points, 10)
-        gpx.simplify()
         if self.length == 0:
             self._load_gpx_extensions_data(gpx)
             return
-        polyline_container = []
         heart_rate_list = []
+        cadence_list = []
+        timed_points = []
         for t in gpx.tracks:
             if self.track_name is None:
                 self.track_name = t.name
@@ -259,26 +287,45 @@ class Track:
                 self.type = "Run" if t.type == "running" else t.type
             for s in t.segments:
                 try:
-                    extensions = [
-                        {
-                            lxml.etree.QName(child).localname: child.text
-                            for child in p.extensions[0]
-                        }
-                        for p in s.points
-                        if p.extensions
-                    ]
-                    heart_rate_list.extend(
-                        [
-                            int(p["hr"]) if p.__contains__("hr") else None
-                            for p in extensions
-                            if extensions
-                        ]
-                    )
-                    heart_rate_list = list(filter(None, heart_rate_list))
+                    for p in s.points:
+                        ext_dict = {}
+                        if p.extensions:
+                            ext_dict = {
+                                lxml.etree.QName(child).localname: child.text
+                                for child in p.extensions[0]
+                            }
+                        hr = (
+                            int(ext_dict["hr"])
+                            if ext_dict.get("hr") not in (None, "")
+                            else None
+                        )
+                        cad = (
+                            int(ext_dict["cad"])
+                            if ext_dict.get("cad") not in (None, "")
+                            else None
+                        )
+                        if hr:
+                            heart_rate_list.append(hr)
+                        if cad and cad > 0:
+                            cadence_list.append(cad)
+                        timed_points.append(
+                            {
+                                "lat": p.latitude,
+                                "lon": p.longitude,
+                                "time": p.time,
+                                "hr": hr,
+                                "cad": cad if cad and cad > 0 else None,
+                            }
+                        )
                 except lxml.etree.XMLSyntaxError:
                     # Ignore XML syntax errors in extensions
                     # This can happen if the GPX file is malformed
                     pass
+
+        gpx.simplify()
+        polyline_container = []
+        for t in gpx.tracks:
+            for s in t.segments:
                 line = [
                     s2.LatLng.from_degrees(p.latitude, p.longitude) for p in s.points
                 ]
@@ -298,6 +345,17 @@ class Track:
         self.average_heartrate = (
             sum(heart_rate_list) / len(heart_rate_list) if heart_rate_list else None
         )
+        self.max_heartrate = max(heart_rate_list) if heart_rate_list else None
+        self.average_cadence = (
+            math.ceil(sum(cadence_list) / len(cadence_list) * RUNNING_CADENCE_MULTIPLIER)
+            if cadence_list
+            else None
+        )
+        (
+            self.cadence_trend,
+            self.split_paces,
+            self.split_heart_rates,
+        ) = self._build_derived_metrics_from_points(timed_points)
         self.moving_dict = self._get_moving_data(gpx, moving_time)
         self.elevation_gain = gpx.get_uphill_downhill().uphill
         self._load_gpx_extensions_data(gpx)
@@ -366,6 +424,7 @@ class Track:
     def _load_fit_data(self, fit: dict):
         _polylines = []
         self.polyline_container = []
+        timed_points = []
         message = fit["session_mesgs"][0]
         self.start_time = datetime.datetime.fromtimestamp(
             (message["start_time"] + FIT_EPOCH_S), tz=timezone.utc
@@ -378,6 +437,14 @@ class Track:
         self.length = message["total_distance"]
         self.average_heartrate = (
             message["avg_heart_rate"] if "avg_heart_rate" in message else None
+        )
+        self.max_heartrate = (
+            message["max_heart_rate"] if "max_heart_rate" in message else None
+        )
+        self.average_cadence = (
+            math.ceil(message["avg_cadence"] * RUNNING_CADENCE_MULTIPLIER)
+            if "avg_cadence" in message and message["avg_cadence"] is not None
+            else None
         )
         if message["sport"].lower() == "running":
             self.type = "Run"
@@ -409,6 +476,24 @@ class Track:
                 lng = record["position_long"] / SEMICIRCLE
                 _polylines.append(s2.LatLng.from_degrees(lat, lng))
                 self.polyline_container.append([lat, lng])
+                record_time = record.get("timestamp")
+                if record_time is not None:
+                    record_time = datetime.datetime.fromtimestamp(
+                        record_time + FIT_EPOCH_S, tz=timezone.utc
+                    )
+                timed_points.append(
+                    {
+                        "lat": lat,
+                        "lon": lng,
+                        "time": record_time,
+                        "hr": record.get("heart_rate"),
+                        "cad": (
+                            record.get("cadence")
+                            if record.get("cadence") not in (None, 0)
+                            else None
+                        ),
+                    }
+                )
         if self.polyline_container:
             self.start_time_local, self.end_time_local = parse_datetime_to_local(
                 self.start_time, self.end_time, self.polyline_container[0]
@@ -420,6 +505,11 @@ class Track:
             self.start_time_local, self.end_time_local = parse_datetime_to_local(
                 self.start_time, self.end_time, None
             )
+        (
+            self.cadence_trend,
+            self.split_paces,
+            self.split_heart_rates,
+        ) = self._build_derived_metrics_from_points(timed_points)
 
         # The FIT file created by Garmin
         if "file_id_mesgs" in fit:
@@ -470,6 +560,118 @@ class Track:
             ),
         }
 
+    @staticmethod
+    def _haversine_m(lat1, lon1, lat2, lon2):
+        radius = 6371000.0
+        lat1, lon1, lat2, lon2 = map(
+            math.radians, [lat1, lon1, lat2, lon2]
+        )
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = (
+            math.sin(dlat / 2) ** 2
+            + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+        )
+        return 2 * radius * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    def _build_derived_metrics_from_points(self, timed_points):
+        valid_points = [
+            p
+            for p in timed_points
+            if p.get("time") is not None
+            and p.get("lat") is not None
+            and p.get("lon") is not None
+        ]
+        if len(valid_points) < 2:
+            return None, [], []
+
+        cumulative = 0.0
+        valid_points[0]["cum"] = 0.0
+        for i in range(1, len(valid_points)):
+            prev = valid_points[i - 1]
+            curr = valid_points[i]
+            cumulative += self._haversine_m(
+                prev["lat"], prev["lon"], curr["lat"], curr["lon"]
+            )
+            curr["cum"] = cumulative
+
+        all_cadence = [
+            p["cad"] for p in valid_points if p.get("cad") is not None and p["cad"] > 0
+        ]
+        cadence_trend = None
+        if all_cadence:
+            midpoint = len(all_cadence) // 2
+            first_half = sum(all_cadence[:midpoint]) / max(1, midpoint)
+            second_half = sum(all_cadence[midpoint:]) / max(
+                1, len(all_cadence) - midpoint
+            )
+            cadence_trend = {
+                "first_half": math.ceil(
+                    first_half * RUNNING_CADENCE_MULTIPLIER
+                ),
+                "second_half": math.ceil(
+                    second_half * RUNNING_CADENCE_MULTIPLIER
+                ),
+                "direction": (
+                    "up"
+                    if second_half - first_half > 0.5
+                    else "down" if second_half - first_half < -0.5 else "flat"
+                ),
+            }
+
+        split_paces = []
+        split_heart_rates = []
+        max_full_km = int(cumulative // 1000)
+        prev_dt = valid_points[0]["time"]
+        prev_target = 0.0
+        prev_index = 0
+
+        for km in range(1, max_full_km + 1):
+            target = km * 1000
+            mark_dt = None
+            end_index = None
+            for i in range(prev_index + 1, len(valid_points)):
+                if valid_points[i]["cum"] >= target:
+                    prev = valid_points[i - 1]
+                    curr = valid_points[i]
+                    seg_dist = curr["cum"] - prev["cum"]
+                    frac = 0.0 if seg_dist == 0 else (target - prev["cum"]) / seg_dist
+                    mark_dt = prev["time"] + (curr["time"] - prev["time"]) * frac
+                    end_index = i
+                    break
+            if mark_dt is None:
+                break
+
+            seconds = (mark_dt - prev_dt).total_seconds()
+            if seconds > 0:
+                pace_seconds = seconds
+                split_paces.append(
+                    {
+                        "km": km,
+                        "pace_seconds": int(round(pace_seconds)),
+                    }
+                )
+
+            hr_values = [
+                p["hr"]
+                for p in valid_points[prev_index:end_index]
+                if p.get("hr") is not None
+            ]
+            split_heart_rates.append(
+                {
+                    "km": km,
+                    "avg_hr": math.ceil(sum(hr_values) / len(hr_values))
+                    if hr_values
+                    else None,
+                }
+            )
+
+            prev_dt = mark_dt
+            prev_target = target
+            prev_index = max(0, end_index - 1)
+
+        return cadence_trend, split_paces, split_heart_rates
+
     def to_namedtuple(self, run_from="gpx"):
         d = {
             "id": self.run_id,
@@ -482,7 +684,28 @@ class Track:
             "end_local": self.end_time_local.strftime("%Y-%m-%d %H:%M:%S"),
             "length": self.length,
             "average_heartrate": (
-                int(self.average_heartrate) if self.average_heartrate else None
+                int(math.ceil(self.average_heartrate))
+                if self.average_heartrate
+                else None
+            ),
+            "max_heartrate": (
+                int(math.ceil(self.max_heartrate)) if self.max_heartrate else None
+            ),
+            "average_cadence": self.average_cadence,
+            "cadence_trend": (
+                json.dumps(self.cadence_trend, ensure_ascii=False)
+                if self.cadence_trend
+                else None
+            ),
+            "split_paces": (
+                json.dumps(self.split_paces, ensure_ascii=False)
+                if self.split_paces
+                else None
+            ),
+            "split_heart_rates": (
+                json.dumps(self.split_heart_rates, ensure_ascii=False)
+                if self.split_heart_rates
+                else None
             ),
             "elevation_gain": (int(self.elevation_gain) if self.elevation_gain else 0),
             "map": run_map(self.polyline_str),

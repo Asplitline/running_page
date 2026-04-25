@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+/* 与 ActivityList / summary 页一致的全页壳：背景、正文字色、字体、内边距节奏 */
+.shell {
+  --layout-space-lg: 24px;
+  --layout-space-xl: 32px;
+  --layout-space-3xl: 64px;
+
+  min-height: 100vh;
+  background: var(--ui-page-background);
+  color: var(--ui-text);
+  font-family: 'Manrope', var(--font-sans), sans-serif;
+}
+
+.main {
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: calc(1180px + (clamp(18px, 4vw, 56px) * 2));
+  width: 100%;
+  padding: clamp(20px, 3vw, 40px) clamp(18px, 4vw, 56px) var(--layout-space-3xl);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--layout-space-lg);
+}
+
+@media (min-width: 1024px) {
+  .main {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--layout-space-xl);
+  }
+}
+
+@media (max-width: 720px) {
+  .main {
+    padding-inline: 16px;
+    padding-bottom: var(--layout-space-xl);
+  }
+}

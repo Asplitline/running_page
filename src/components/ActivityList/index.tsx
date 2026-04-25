@@ -1,902 +1,404 @@
-import React, {
-  lazy,
-  useState,
-  Suspense,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from 'react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts';
-import VirtualList from 'rc-virtual-list';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
 import activities from '@/static/activities.json';
 import styles from './style.module.css';
-import { ACTIVITY_TOTAL, LOADING_TEXT } from '@/utils/const';
-import { totalStat, yearSummaryStats } from '@assets/index';
-import { loadSvgComponent } from '@/utils/svgUtils';
-import { SHOW_ELEVATION_GAIN, HOME_PAGE_TITLE } from '@/utils/const';
-import { DIST_UNIT, M_TO_DIST } from '@/utils/utils';
-import RoutePreview from '@/components/RoutePreview';
-import { Activity } from '@/utils/utils';
-// Layout constants (avoid magic numbers)
-const ITEM_WIDTH = 280;
-const ITEM_GAP = 20;
+import { M_TO_DIST, Activity } from '@/utils/utils';
+import { IS_CHINESE } from '@/utils/const';
+import { HOME_PAGE_TITLE } from '@/utils/const';
+import {
+  DAY_SECTION_TITLE,
+  MONTH_SECTION_TITLE,
+  SUMMARY_PAGE_TITLE,
+  VIEW_LABELS,
+  WEEK_SECTION_TITLE,
+  YEAR_SECTION_TITLE,
+} from './constants';
+import { getActivitySeconds, getWeekKey, isRunningActivity } from './helpers';
+import { PeriodSummary, RunActivity, ViewMode } from './types';
+import ViewButton from './components/ViewButton';
+import PeriodCard from './components/PeriodCard';
+import DayActivityCard from './components/DayActivityCard';
+import StickyHeader from '@/components/StickyHeader';
+import ThemeToggleButton from '@/components/ThemeToggleButton';
+import SiteLogo from '@/components/SiteLogo';
+import UnifiedTitle from '@/components/UnifiedTitle';
 
-const VIRTUAL_LIST_STYLES = {
-  horizontalScrollBar: {},
-  horizontalScrollBarThumb: {
-    background:
-      'var(--color-primary, var(--color-scrollbar-thumb, rgba(0,0,0,0.4)))',
-  },
-  verticalScrollBar: {},
-  verticalScrollBarThumb: {
-    background:
-      'var(--color-primary, var(--color-scrollbar-thumb, rgba(0,0,0,0.4)))',
-  },
-};
-const MonthOfLifeSvg = (sportType: string) => {
-  const path = sportType === 'all' ? './mol.svg' : `./mol_${sportType}.svg`;
-  return lazy(() => loadSvgComponent(totalStat, path));
-};
+const getMonthlyScaleLabel = (key: string) => {
+  const [year, month] = key.split('-');
+  const monthNumber = Number(month);
 
-const RunningSvg = MonthOfLifeSvg('running');
-const WalkingSvg = MonthOfLifeSvg('walking');
-const HikingSvg = MonthOfLifeSvg('hiking');
-const CyclingSvg = MonthOfLifeSvg('cycling');
-const SwimmingSvg = MonthOfLifeSvg('swimming');
-const SkiingSvg = MonthOfLifeSvg('skiing');
-const AllSvg = MonthOfLifeSvg('all');
-
-// Cache for year summary lazy components to prevent flickering
-const yearSummaryCache: Record<
-  string,
-  React.LazyExoticComponent<React.FC<React.SVGProps<SVGSVGElement>>>
-> = {};
-const getYearSummarySvg = (year: string) => {
-  if (!yearSummaryCache[year]) {
-    yearSummaryCache[year] = lazy(() =>
-      loadSvgComponent(yearSummaryStats, `./year_summary_${year}.svg`)
-    );
+  if (!year || Number.isNaN(monthNumber)) {
+    return IS_CHINESE ? '月度拆解' : 'Monthly Breakdown';
   }
-  return yearSummaryCache[year];
-};
 
-interface ActivitySummary {
-  totalDistance: number;
-  totalTime: number;
-  totalElevationGain: number;
-  count: number;
-  dailyDistances: number[];
-  maxDistance: number;
-  maxSpeed: number;
-  location: string;
-  totalHeartRate: number; // Add heart rate statistics
-  heartRateCount: number;
-  activities: Activity[]; // Add activities array for day interval
-}
-
-interface DisplaySummary {
-  totalDistance: number;
-  averageSpeed: number;
-  totalTime: number;
-  count: number;
-  maxDistance: number;
-  maxSpeed: number;
-  location: string;
-  totalElevationGain?: number;
-  averageHeartRate?: number; // Add heart rate display
-}
-
-interface ChartData {
-  day: number;
-  distance: string;
-}
-
-interface ActivityCardProps {
-  period: string;
-  summary: DisplaySummary;
-  dailyDistances: number[];
-  interval: string;
-  activities?: Activity[]; // Add activities for day interval
-}
-
-interface ActivityGroups {
-  [key: string]: ActivitySummary;
-}
-
-type IntervalType = 'year' | 'month' | 'week' | 'day' | 'life';
-
-// A row group contains multiple activity card data items that will be rendered in one virtualized row
-type RowGroup = Array<{ period: string; summary: ActivitySummary }>;
-
-const ActivityCardInner: React.FC<ActivityCardProps> = ({
-  period,
-  summary,
-  dailyDistances,
-  interval,
-  activities = [],
-}) => {
-  const [isFlipped, setIsFlipped] = useState(false);
-  const handleCardClick = () => {
-    if (interval === 'day' && activities.length > 0) {
-      setIsFlipped(!isFlipped);
-    }
-  };
-  const generateLabels = (): number[] => {
-    if (interval === 'month') {
-      const [year, month] = period.split('-').map(Number);
-      const daysInMonth = new Date(year, month, 0).getDate(); // Get the number of days in the month
-      return Array.from({ length: daysInMonth }, (_, i) => i + 1);
-    } else if (interval === 'week') {
-      return Array.from({ length: 7 }, (_, i) => i + 1);
-    } else if (interval === 'year') {
-      return Array.from({ length: 12 }, (_, i) => i + 1); // Generate months 1 to 12
-    }
-    return [];
-  };
-
-  const data: ChartData[] = generateLabels().map((day) => ({
-    day,
-    distance: (dailyDistances[day - 1] || 0).toFixed(2), // Keep two decimal places
-  }));
-
-  const formatTime = (seconds: number): string => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${h}h ${m}m ${s}s`;
-  };
-
-  const formatPace = (speed: number): string => {
-    if (speed === 0) return `0:00 min/${DIST_UNIT}`;
-    const pace = 60 / speed; // min/DIST_UNIT
-    const totalSeconds = Math.round(pace * 60); // Total seconds per DIST_UNIT
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds} min/${DIST_UNIT}`;
-  };
-
-  // Calculate Y-axis maximum value and ticks
-  const yAxisMax = Math.ceil(
-    Math.max(...data.map((d) => parseFloat(d.distance))) + 10
-  ); // Round up and add buffer
-  const yAxisTicks = Array.from(
-    { length: Math.ceil(yAxisMax / 5) + 1 },
-    (_, i) => i * 5
-  ); // Generate arithmetic sequence
-
-  return (
-    <div
-      className={`${styles.activityCard} ${interval === 'day' ? styles.activityCardFlippable : ''}`}
-      onClick={handleCardClick}
-      style={{
-        cursor:
-          interval === 'day' && activities.length > 0 ? 'pointer' : 'default',
-      }}
-    >
-      <div className={`${styles.cardInner} ${isFlipped ? styles.flipped : ''}`}>
-        {/* Front side - Activity details */}
-        <div className={styles.cardFront}>
-          <h2 className={styles.activityName}>{period}</h2>
-          <div className={styles.activityDetails}>
-            <p>
-              <strong>{ACTIVITY_TOTAL.TOTAL_DISTANCE_TITLE}:</strong>{' '}
-              {summary.totalDistance.toFixed(2)} {DIST_UNIT}
-            </p>
-            {SHOW_ELEVATION_GAIN &&
-              summary.totalElevationGain !== undefined && (
-                <p>
-                  <strong>{ACTIVITY_TOTAL.TOTAL_ELEVATION_GAIN_TITLE}:</strong>{' '}
-                  {summary.totalElevationGain.toFixed(0)} m
-                </p>
-              )}
-            <p>
-              <strong>{ACTIVITY_TOTAL.AVERAGE_SPEED_TITLE}:</strong>{' '}
-              {formatPace(summary.averageSpeed)}
-            </p>
-            <p>
-              <strong>{ACTIVITY_TOTAL.TOTAL_TIME_TITLE}:</strong>{' '}
-              {formatTime(summary.totalTime)}
-            </p>
-            {summary.averageHeartRate !== undefined && (
-              <p>
-                <strong>{ACTIVITY_TOTAL.AVERAGE_HEART_RATE_TITLE}:</strong>{' '}
-                {summary.averageHeartRate.toFixed(0)} bpm
-              </p>
-            )}
-            {interval !== 'day' && (
-              <>
-                <p>
-                  <strong>{ACTIVITY_TOTAL.ACTIVITY_COUNT_TITLE}:</strong>{' '}
-                  {summary.count}
-                </p>
-                <p>
-                  <strong>{ACTIVITY_TOTAL.MAX_DISTANCE_TITLE}:</strong>{' '}
-                  {summary.maxDistance.toFixed(2)} {DIST_UNIT}
-                </p>
-                <p>
-                  <strong>{ACTIVITY_TOTAL.MAX_SPEED_TITLE}:</strong>{' '}
-                  {formatPace(summary.maxSpeed)}
-                </p>
-                <p>
-                  <strong>{ACTIVITY_TOTAL.AVERAGE_DISTANCE_TITLE}:</strong>{' '}
-                  {(summary.totalDistance / summary.count).toFixed(2)}{' '}
-                  {DIST_UNIT}
-                </p>
-              </>
-            )}
-            {['month', 'week', 'year'].includes(interval) && (
-              <div className={styles.chart}>
-                <ResponsiveContainer>
-                  <BarChart
-                    data={data}
-                    margin={{ top: 20, right: 20, left: -20, bottom: 5 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="var(--color-run-row-hover-background)"
-                    />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fill: 'var(--color-run-table-thead)' }}
-                    />
-                    <YAxis
-                      label={{
-                        value: DIST_UNIT,
-                        angle: -90,
-                        position: 'insideLeft',
-                        fill: 'var(--color-run-table-thead)',
-                      }}
-                      domain={[0, yAxisMax]}
-                      ticks={yAxisTicks}
-                      tick={{ fill: 'var(--color-run-table-thead)' }}
-                    />
-                    <Tooltip
-                      formatter={(value) => `${value} ${DIST_UNIT}`}
-                      contentStyle={{
-                        backgroundColor:
-                          'var(--color-run-row-hover-background)',
-                        border:
-                          '1px solid var(--color-run-row-hover-background)',
-                        color: 'var(--color-run-table-thead)',
-                      }}
-                      labelStyle={{ color: 'var(--color-primary)' }}
-                    />
-                    <Bar dataKey="distance" fill="var(--color-primary)" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Back side - Route preview */}
-        {interval === 'day' && activities.length > 0 && (
-          <div className={styles.cardBack}>
-            <div className={styles.routeContainer}>
-              <RoutePreview activities={activities} />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// custom equality for memo: compare key summary fields, dailyDistances values and activities length
-const activityCardAreEqual = (
-  prev: ActivityCardProps,
-  next: ActivityCardProps
-) => {
-  if (prev.period !== next.period) return false;
-  if (prev.interval !== next.interval) return false;
-  const s1 = prev.summary;
-  const s2 = next.summary;
-  if (
-    s1.totalDistance !== s2.totalDistance ||
-    s1.averageSpeed !== s2.averageSpeed ||
-    s1.totalTime !== s2.totalTime ||
-    s1.count !== s2.count ||
-    s1.maxDistance !== s2.maxDistance ||
-    s1.maxSpeed !== s2.maxSpeed ||
-    s1.location !== s2.location ||
-    (s1.totalElevationGain ?? undefined) !==
-      (s2.totalElevationGain ?? undefined) ||
-    (s1.averageHeartRate ?? undefined) !== (s2.averageHeartRate ?? undefined)
-  ) {
-    return false;
+  if (IS_CHINESE) {
+    return `${year}年${monthNumber}月`;
   }
-  const d1 = prev.dailyDistances || [];
-  const d2 = next.dailyDistances || [];
-  if (d1.length !== d2.length) return false;
-  for (let i = 0; i < d1.length; i++) if (d1[i] !== d2[i]) return false;
-  const a1 = prev.activities || [];
-  const a2 = next.activities || [];
-  if (a1.length !== a2.length) return false;
-  return true;
+
+  const date = new Date(Number(year), monthNumber - 1, 1);
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+  }).format(date);
 };
 
-const ActivityCard = React.memo(ActivityCardInner, activityCardAreEqual);
+const getYearlyScaleLabel = (year: string) => {
+  if (!year) {
+    return IS_CHINESE ? '月份分布' : 'Monthly Spread';
+  }
+
+  return IS_CHINESE ? `${year}年各月` : `Months of ${year}`;
+};
+
+const getMonthlyTooltipLabel = (key: string, value: string | number) => {
+  const [, month] = key.split('-');
+  const day = typeof value === 'number' ? value : Number(value);
+  const monthNumber = Number(month);
+
+  if (Number.isNaN(monthNumber) || Number.isNaN(day)) {
+    return `${key}-${String(value)}`;
+  }
+
+  return IS_CHINESE ? `${monthNumber}月${day}日` : `${monthNumber}/${day}`;
+};
+
+const getYearlyTooltipLabel = (year: string, value: string | number) => {
+  const month = typeof value === 'number' ? value : Number(value);
+  if (Number.isNaN(month)) {
+    return String(value);
+  }
+  return IS_CHINESE
+    ? `${year}年${month}月`
+    : `${year}-${String(month).padStart(2, '0')}`;
+};
+
+const getISOWeekMonday = (weekKey: string) => {
+  const [yearPart, weekPart] = weekKey.split('-W');
+  const year = Number(yearPart);
+  const week = Number(weekPart);
+
+  if (Number.isNaN(year) || Number.isNaN(week)) {
+    return null;
+  }
+
+  const jan4 = new Date(year, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - jan4Day + 1 + (week - 1) * 7);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+};
+
+const getWeeklyTooltipLabel = (weekKey: string, value: string | number) => {
+  const dayOrder = typeof value === 'number' ? value : Number(value);
+  const monday = getISOWeekMonday(weekKey);
+
+  if (!monday || Number.isNaN(dayOrder)) {
+    return `${weekKey}-${String(value)}`;
+  }
+
+  const targetDate = new Date(monday);
+  targetDate.setDate(monday.getDate() + (dayOrder - 1));
+
+  if (IS_CHINESE) {
+    return `${targetDate.getMonth() + 1}月${targetDate.getDate()}日`;
+  }
+
+  return `${targetDate.getMonth() + 1}/${targetDate.getDate()}`;
+};
 
 const ActivityList: React.FC = () => {
-  const [interval, setInterval] = useState<IntervalType>('month');
-  const [sportType, setSportType] = useState<string>('all');
-  const [sportTypeOptions, setSportTypeOptions] = useState<string[]>([]);
-  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('day');
+  const [splitPages, setSplitPages] = useState<Record<number, number>>({});
 
-  // Get available years from activities
-  const availableYears = useMemo(() => {
-    const years = new Set<string>();
-    activities.forEach((activity) => {
-      const year = new Date(activity.start_date_local).getFullYear().toString();
-      years.add(year);
-    });
-    return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, []);
-
-  // Keyboard navigation for year selection in Life view
-  useEffect(() => {
-    if (interval !== 'life') return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle arrow keys
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-
-      // Prevent default scrolling behavior
-      e.preventDefault();
-
-      // Remove focus from current element to avoid visual confusion
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-
-      const currentIndex = selectedYear
-        ? availableYears.indexOf(selectedYear)
-        : -1;
-
-      if (e.key === 'ArrowLeft') {
-        // Move to newer year (left in UI, lower index since sorted descending)
-        if (currentIndex === -1) {
-          // No year selected, select the last (oldest) year
-          setSelectedYear(availableYears[availableYears.length - 1]);
-        } else if (currentIndex > 0) {
-          setSelectedYear(availableYears[currentIndex - 1]);
-        } else if (currentIndex === 0) {
-          // At the most recent year, deselect to show Life view
-          setSelectedYear(null);
-        }
-      } else if (e.key === 'ArrowRight') {
-        // Move to older year (right in UI, higher index since sorted descending)
-        if (currentIndex === -1) {
-          // No year selected, select the first (most recent) year
-          setSelectedYear(availableYears[0]);
-        } else if (currentIndex < availableYears.length - 1) {
-          setSelectedYear(availableYears[currentIndex + 1]);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [interval, selectedYear, availableYears]);
-
-  useEffect(() => {
-    const sportTypeSet = new Set(activities.map((activity) => activity.type));
-    if (sportTypeSet.has('Run')) {
-      sportTypeSet.delete('Run');
-      sportTypeSet.add('running');
-    }
-    if (sportTypeSet.has('Walk')) {
-      sportTypeSet.delete('Walk');
-      sportTypeSet.add('walking');
-    }
-    if (sportTypeSet.has('Ride')) {
-      sportTypeSet.delete('Ride');
-      sportTypeSet.add('cycling');
-    }
-    const uniqueSportTypes = [...sportTypeSet];
-    uniqueSportTypes.unshift('all');
-    setSportTypeOptions(uniqueSportTypes);
-  }, []);
-
-  // 添加useEffect监听interval变化
-  useEffect(() => {
-    if (interval === 'life' && sportType !== 'all') {
-      setSportType('all');
-    }
-  }, [interval, sportType]);
-
-  const navigate = useNavigate();
-
-  const handleHomeClick = () => {
-    navigate('/');
-  };
-
-  function toggleInterval(newInterval: IntervalType): void {
-    setInterval(newInterval);
-  }
-
-  function convertTimeToSeconds(time: string): number {
-    const [hours, minutes, seconds] = time.split(':').map(Number);
-    return hours * 3600 + minutes * 60 + seconds;
-  }
-
-  function groupActivitiesFn(
-    intervalArg: IntervalType,
-    sportTypeArg: string
-  ): ActivityGroups {
-    return (activities as Activity[])
-      .filter((activity) => {
-        if (sportTypeArg === 'all') return true;
-        if (sportTypeArg === 'running')
-          return activity.type === 'running' || activity.type === 'Run';
-        if (sportTypeArg === 'walking')
-          return activity.type === 'walking' || activity.type === 'Walk';
-        if (sportTypeArg === 'cycling')
-          return activity.type === 'cycling' || activity.type === 'Ride';
-        return activity.type === sportTypeArg;
-      })
-      .reduce((acc: ActivityGroups, activity) => {
-        const date = new Date(activity.start_date_local);
-        let key: string;
-        let index: number;
-        switch (intervalArg) {
-          case 'year':
-            key = date.getFullYear().toString();
-            index = date.getMonth();
-            break;
-          case 'month':
-            key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-            index = date.getDate() - 1;
-            break;
-          case 'week': {
-            const currentDate = new Date(date.valueOf());
-            currentDate.setDate(
-              currentDate.getDate() + 4 - (currentDate.getDay() || 7)
-            );
-            const yearStart = new Date(currentDate.getFullYear(), 0, 1);
-            const weekNum = Math.ceil(
-              ((currentDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-            );
-            key = `${currentDate.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
-            index = (date.getDay() + 6) % 7;
-            break;
-          }
-          case 'day':
-            key = date.toLocaleDateString('zh').replaceAll('/', '-');
-            index = 0;
-            break;
-          default:
-            key = date.getFullYear().toString();
-            index = 0;
-        }
-
-        if (!acc[key])
-          acc[key] = {
-            totalDistance: 0,
-            totalTime: 0,
-            totalElevationGain: 0,
-            count: 0,
-            dailyDistances: [],
-            maxDistance: 0,
-            maxSpeed: 0,
-            location: '',
-            totalHeartRate: 0,
-            heartRateCount: 0,
-            activities: [],
-          };
-
-        const distance = activity.distance / M_TO_DIST;
-        const timeInSeconds = convertTimeToSeconds(activity.moving_time);
-        const speed = timeInSeconds > 0 ? distance / (timeInSeconds / 3600) : 0;
-
-        acc[key].totalDistance += distance;
-        acc[key].totalTime += timeInSeconds;
-
-        if (SHOW_ELEVATION_GAIN && activity.elevation_gain)
-          acc[key].totalElevationGain += activity.elevation_gain;
-
-        if (activity.average_heartrate) {
-          acc[key].totalHeartRate += activity.average_heartrate;
-          acc[key].heartRateCount += 1;
-        }
-
-        acc[key].count += 1;
-        if (intervalArg === 'day') acc[key].activities.push(activity);
-        acc[key].dailyDistances[index] =
-          (acc[key].dailyDistances[index] || 0) + distance;
-        if (distance > acc[key].maxDistance) acc[key].maxDistance = distance;
-        if (speed > acc[key].maxSpeed) acc[key].maxSpeed = speed;
-        if (intervalArg === 'day')
-          acc[key].location = activity.location_country || '';
-
-        return acc;
-      }, {} as ActivityGroups);
-  }
-
-  const activitiesByInterval = useMemo(
-    () => groupActivitiesFn(interval, sportType),
-    [interval, sportType]
-  );
-
-  const dataList = useMemo(
+  const runningActivities = useMemo<RunActivity[]>(
     () =>
-      Object.entries(activitiesByInterval)
-        .sort(([a], [b]) => {
-          if (interval === 'day') {
-            return new Date(b).getTime() - new Date(a).getTime(); // Sort by date
-          } else if (interval === 'week') {
-            const [yearA, weekA] = a.split('-W').map(Number);
-            const [yearB, weekB] = b.split('-W').map(Number);
-            return yearB - yearA || weekB - weekA; // Sort by year and week number
-          } else {
-            const [yearA, monthA = 0] = a.split('-').map(Number);
-            const [yearB, monthB = 0] = b.split('-').map(Number);
-            return yearB - yearA || monthB - monthA; // Sort by year and month
-          }
+      (activities as Activity[])
+        .filter(isRunningActivity)
+        .map((activity) => {
+          const parsedDate = new Date(activity.start_date_local);
+          return {
+            ...activity,
+            parsedDate,
+            totalSeconds: getActivitySeconds(activity.moving_time),
+            distanceValue: activity.distance / M_TO_DIST,
+          };
         })
-        .map(([period, summary]) => ({ period, summary })),
-    [activitiesByInterval, interval]
+        .sort((a, b) => b.parsedDate.getTime() - a.parsedDate.getTime()),
+    []
   );
 
-  const itemWidth = ITEM_WIDTH;
-  const gap = ITEM_GAP;
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const filterRef = useRef<HTMLDivElement | null>(null);
-  const [itemsPerRow, setItemsPerRow] = useState(0);
-  const [rowHeight, setRowHeight] = useState<number>(360);
-  const sampleRef = useRef<HTMLDivElement | null>(null);
-  const [listHeight, setListHeight] = useState<number>(500);
+  const dailyActivities = useMemo(
+    () => runningActivities.slice(0, 12),
+    [runningActivities]
+  );
 
-  // ref to the VirtualList DOM node so we can control scroll position
-  const virtualListRef = useRef<HTMLDivElement | null>(null);
+  const weeklySummaries = useMemo<PeriodSummary[]>(() => {
+    const summaryMap = new Map<string, PeriodSummary>();
 
-  const calculateItemsPerRow = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const containerWidth = container.clientWidth;
-    // Calculate how many items can fit in one row (considering gaps)
-    const count = Math.floor((containerWidth + gap) / (itemWidth + gap));
-    setItemsPerRow(count);
-  }, [gap, itemWidth]);
+    runningActivities.forEach((activity) => {
+      const key = getWeekKey(activity.parsedDate);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    // Calculate immediately once
-    calculateItemsPerRow();
-
-    // Use ResizeObserver to monitor container size changes
-    const resizeObserver = new ResizeObserver(calculateItemsPerRow);
-    resizeObserver.observe(container);
-
-    return () => resizeObserver.disconnect();
-  }, [calculateItemsPerRow]);
-
-  // when the interval changes, scroll the virtual list to top to improve UX
-  useEffect(() => {
-    // attempt to find the virtual list DOM node and reset scrollTop
-    const resetScroll = () => {
-      // prefer an explicit ref if available
-      const el =
-        virtualListRef.current || document.querySelector('.rc-virtual-list');
-      if (el) {
-        try {
-          el.scrollTop = 0;
-        } catch (e) {
-          console.error(e);
-        }
+      if (!summaryMap.has(key)) {
+        summaryMap.set(key, {
+          key,
+          label: key,
+          count: 0,
+          totalDistance: 0,
+          totalTime: 0,
+          maxDistance: 0,
+          chartValues: Array.from({ length: 7 }, () => 0),
+        });
       }
-    };
 
-    // Defer to next frame so the list has time to re-render with new data
-    const id = requestAnimationFrame(() => requestAnimationFrame(resetScroll));
-    // also fallback to a short timeout
-    const t = setTimeout(resetScroll, 50);
+      const summary = summaryMap.get(key)!;
+      summary.count += 1;
+      summary.totalDistance += activity.distanceValue;
+      summary.totalTime += activity.totalSeconds;
+      summary.maxDistance = Math.max(
+        summary.maxDistance,
+        activity.distanceValue
+      );
+      const dayIndex = (activity.parsedDate.getDay() + 6) % 7;
+      summary.chartValues[dayIndex] += activity.distanceValue;
+    });
 
-    return () => {
-      cancelAnimationFrame(id);
-      clearTimeout(t);
-    };
-  }, [interval, sportType]);
+    return Array.from(summaryMap.values()).slice(0, 8);
+  }, [runningActivities]);
 
-  // compute list height = viewport height - filter container height
-  useEffect(() => {
-    const updateListHeight = () => {
-      const filterH = filterRef.current?.clientHeight || 0;
-      const containerEl = containerRef.current;
-      let topOffset = 0;
-      if (containerEl) {
-        const rect = containerEl.getBoundingClientRect();
-        topOffset = Math.max(0, rect.top);
+  const monthlySummaries = useMemo<PeriodSummary[]>(() => {
+    const summaryMap = new Map<string, PeriodSummary>();
+
+    runningActivities.forEach((activity) => {
+      const year = activity.parsedDate.getFullYear();
+      const month = activity.parsedDate.getMonth() + 1;
+      const key = `${year}-${String(month).padStart(2, '0')}`;
+
+      if (!summaryMap.has(key)) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        summaryMap.set(key, {
+          key,
+          label: key,
+          count: 0,
+          totalDistance: 0,
+          totalTime: 0,
+          maxDistance: 0,
+          chartValues: Array.from({ length: daysInMonth }, () => 0),
+        });
       }
-      const base = topOffset || filterH || 0;
-      // Try to compute a dynamic bottom padding by checking the container's parent element's bottom
-      let bottomPadding = 16; // fallback
-      if (containerEl && containerEl.parentElement) {
-        try {
-          const parentRect = containerEl.parentElement.getBoundingClientRect();
-          const containerRect = containerEl.getBoundingClientRect();
-          const distanceToParentBottom = Math.max(
-            0,
-            parentRect.bottom - containerRect.bottom
-          );
-          // Use a small fraction of that distance (or clamp) to avoid huge paddings
-          bottomPadding = Math.min(
-            48,
-            Math.max(8, Math.round(distanceToParentBottom / 4))
-          );
-        } catch (e) {
-          console.error(e);
-        }
+
+      const summary = summaryMap.get(key)!;
+      summary.count += 1;
+      summary.totalDistance += activity.distanceValue;
+      summary.totalTime += activity.totalSeconds;
+      summary.maxDistance = Math.max(
+        summary.maxDistance,
+        activity.distanceValue
+      );
+      summary.chartValues[activity.parsedDate.getDate() - 1] +=
+        activity.distanceValue;
+    });
+
+    return Array.from(summaryMap.values()).slice(0, 6);
+  }, [runningActivities]);
+
+  const yearlySummaries = useMemo<PeriodSummary[]>(() => {
+    const summaryMap = new Map<string, PeriodSummary>();
+
+    runningActivities.forEach((activity) => {
+      const year = activity.parsedDate.getFullYear().toString();
+
+      if (!summaryMap.has(year)) {
+        summaryMap.set(year, {
+          key: year,
+          label: year,
+          count: 0,
+          totalDistance: 0,
+          totalTime: 0,
+          maxDistance: 0,
+          chartValues: Array.from({ length: 12 }, () => 0),
+        });
       }
-      const h = Math.max(100, window.innerHeight - base - bottomPadding);
-      setListHeight(h);
-    };
 
-    // initial
-    updateListHeight();
+      const summary = summaryMap.get(year)!;
+      summary.count += 1;
+      summary.totalDistance += activity.distanceValue;
+      summary.totalTime += activity.totalSeconds;
+      summary.maxDistance = Math.max(
+        summary.maxDistance,
+        activity.distanceValue
+      );
+      summary.chartValues[activity.parsedDate.getMonth()] +=
+        activity.distanceValue;
+    });
 
-    // window resize
-    window.addEventListener('resize', updateListHeight);
+    return Array.from(summaryMap.values());
+  }, [runningActivities]);
 
-    // observe filter size changes
-    const ro = new ResizeObserver(updateListHeight);
-    if (filterRef.current) ro.observe(filterRef.current);
-
-    return () => {
-      window.removeEventListener('resize', updateListHeight);
-      ro.disconnect();
-    };
-  }, []);
-
-  // measure representative card height using a hidden sample and ResizeObserver
-  useEffect(() => {
-    const el = sampleRef.current;
-    if (!el) return;
-    const update = () => {
-      const h = el.offsetHeight;
-      if (h && h !== rowHeight) setRowHeight(h);
-    };
-    // initial
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [dataList, rowHeight]);
-
-  const calcGroup: RowGroup[] = useMemo(() => {
-    if (itemsPerRow < 1) return [];
-    const groupLength = Math.ceil(dataList.length / itemsPerRow);
-    const arr: RowGroup[] = [];
-    for (let i = 0; i < groupLength; i++) {
-      const start = i * itemsPerRow;
-      arr.push(dataList.slice(start, start + itemsPerRow));
+  const renderContent = () => {
+    if (!runningActivities.length) {
+      return (
+        <section className={styles.emptyState}>
+          <p className={styles.sectionEyebrow}>
+            {IS_CHINESE ? '暂无记录' : 'No Runs Yet'}
+          </p>
+          <h2>
+            {IS_CHINESE ? '这里还没有跑步档案。' : 'No running archive yet.'}
+          </h2>
+          <p>
+            {IS_CHINESE
+              ? '等第一批跑步记录同步后，这里会优先展示最近状态，再展开更长周期。'
+              : 'Once activity sync finishes, this page will surface recent form first.'}
+          </p>
+        </section>
+      );
     }
-    return arr;
-  }, [dataList, itemsPerRow]);
 
-  // compute a row width so we can center the VirtualList and keep cards left-aligned inside
-  const rowWidth =
-    itemsPerRow < 1
-      ? '100%'
-      : `${itemsPerRow * itemWidth + Math.max(0, itemsPerRow - 1) * gap}px`;
+    if (viewMode === 'day') {
+      return (
+        <section className={styles.section}>
+          {/* <UnifiedTitle as="h2" variant="section">
+            {DAY_SECTION_TITLE}
+          </UnifiedTitle> */}
 
-  const loading = itemsPerRow < 1 || !rowHeight;
-
-  return (
-    <div className={styles.activityList}>
-      <div className={styles.filterContainer} ref={filterRef}>
-        <button className={styles.smallHomeButton} onClick={handleHomeClick}>
-          {HOME_PAGE_TITLE}
-        </button>
-        <select
-          onChange={(e) => setSportType(e.target.value)}
-          value={sportType}
-        >
-          {sportTypeOptions.map((type) => (
-            <option
-              key={type}
-              value={type}
-              disabled={interval === 'life' && type !== 'all'}
-            >
-              {type}
-            </option>
-          ))}
-        </select>
-        <select
-          onChange={(e) => toggleInterval(e.target.value as IntervalType)}
-          value={interval}
-        >
-          <option value="year">{ACTIVITY_TOTAL.YEARLY_TITLE}</option>
-          <option value="month">{ACTIVITY_TOTAL.MONTHLY_TITLE}</option>
-          <option value="week">{ACTIVITY_TOTAL.WEEKLY_TITLE}</option>
-          <option value="day">{ACTIVITY_TOTAL.DAILY_TITLE}</option>
-          <option value="life">Life</option>
-        </select>
-      </div>
-
-      {interval === 'life' && (
-        <div className={styles.lifeContainer}>
-          {/* Year selector buttons */}
-          <div className={styles.yearSelector}>
-            {availableYears.map((year) => (
-              <button
-                key={year}
-                className={`${styles.yearButton} ${selectedYear === year ? styles.yearButtonActive : ''}`}
-                onClick={() =>
-                  setSelectedYear(selectedYear === year ? null : year)
-                }
-              >
-                {year}
-              </button>
-            ))}
-          </div>
-          <Suspense fallback={<div>Loading SVG...</div>}>
-            {selectedYear ? (
-              // Show Year Summary SVG when a year is selected
-              (() => {
-                const YearSvg = getYearSummarySvg(selectedYear);
-                return <YearSvg className={styles.yearSummarySvg} />;
-              })()
-            ) : (
-              // Show Life SVG when no year is selected
-              <>
-                {(sportType === 'running' || sportType === 'Run') && (
-                  <RunningSvg />
-                )}
-                {sportType === 'walking' && <WalkingSvg />}
-                {sportType === 'hiking' && <HikingSvg />}
-                {sportType === 'cycling' && <CyclingSvg />}
-                {sportType === 'swimming' && <SwimmingSvg />}
-                {sportType === 'skiing' && <SkiingSvg />}
-                {sportType === 'all' && <AllSvg />}
-              </>
-            )}
-          </Suspense>
-        </div>
-      )}
-
-      {interval !== 'life' && (
-        <div className={styles.summaryContainer} ref={containerRef}>
-          {/* hidden sample card for measuring row height */}
-          <div
-            style={{
-              position: 'absolute',
-              visibility: 'hidden',
-              pointerEvents: 'none',
-              height: 'auto',
-            }}
-            ref={sampleRef}
-          >
-            {dataList[0] && (
-              <ActivityCard
-                key={dataList[0].period}
-                period={dataList[0].period}
-                summary={{
-                  totalDistance: dataList[0].summary.totalDistance,
-                  averageSpeed: dataList[0].summary.totalTime
-                    ? dataList[0].summary.totalDistance /
-                      (dataList[0].summary.totalTime / 3600)
-                    : 0,
-                  totalTime: dataList[0].summary.totalTime,
-                  count: dataList[0].summary.count,
-                  maxDistance: dataList[0].summary.maxDistance,
-                  maxSpeed: dataList[0].summary.maxSpeed,
-                  location: dataList[0].summary.location,
-                  totalElevationGain: SHOW_ELEVATION_GAIN
-                    ? dataList[0].summary.totalElevationGain
-                    : undefined,
-                  averageHeartRate:
-                    dataList[0].summary.heartRateCount > 0
-                      ? dataList[0].summary.totalHeartRate /
-                        dataList[0].summary.heartRateCount
-                      : undefined,
-                }}
-                dailyDistances={dataList[0].summary.dailyDistances}
-                interval={interval}
-                activities={
-                  interval === 'day'
-                    ? dataList[0].summary.activities
-                    : undefined
+          <div className={`${styles.recentGrid} ${styles.dayGrid}`}>
+            {dailyActivities.map((activity) => (
+              <DayActivityCard
+                key={activity.run_id}
+                activity={activity}
+                currentPage={splitPages[activity.run_id] ?? 0}
+                onPageChange={(runId, nextPage) =>
+                  setSplitPages((pages) => ({
+                    ...pages,
+                    [runId]: nextPage,
+                  }))
                 }
               />
-            )}
+            ))}
           </div>
-          <div className={styles.summaryInner}>
-            <div style={{ width: rowWidth }}>
-              {loading ? (
-                // Use full viewport height (or viewport minus filter height if available) to avoid flicker
-                <div
-                  style={{
-                    height: filterRef.current
-                      ? `${Math.max(100, window.innerHeight - (filterRef.current.clientHeight || 0) - 40)}px`
-                      : '100vh',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: 20,
-                      color: 'var(--color-run-table-thead)',
-                    }}
-                  >
-                    {LOADING_TEXT}
-                  </div>
-                </div>
-              ) : (
-                <VirtualList
-                  key={`${sportType}-${interval}-${itemsPerRow}`}
-                  data={calcGroup}
-                  height={listHeight}
-                  itemHeight={rowHeight}
-                  itemKey={(row: RowGroup) => row[0]?.period ?? ''}
-                  styles={VIRTUAL_LIST_STYLES}
-                >
-                  {(row: RowGroup) => (
-                    <div
-                      ref={virtualListRef}
-                      className={styles.rowContainer}
-                      style={{ gap: `${gap}px` }}
-                    >
-                      {row.map(
-                        (cardData: {
-                          period: string;
-                          summary: ActivitySummary;
-                        }) => (
-                          <ActivityCard
-                            key={cardData.period}
-                            period={cardData.period}
-                            summary={{
-                              totalDistance: cardData.summary.totalDistance,
-                              averageSpeed: cardData.summary.totalTime
-                                ? cardData.summary.totalDistance /
-                                  (cardData.summary.totalTime / 3600)
-                                : 0,
-                              totalTime: cardData.summary.totalTime,
-                              count: cardData.summary.count,
-                              maxDistance: cardData.summary.maxDistance,
-                              maxSpeed: cardData.summary.maxSpeed,
-                              location: cardData.summary.location,
-                              totalElevationGain: SHOW_ELEVATION_GAIN
-                                ? cardData.summary.totalElevationGain
-                                : undefined,
-                              averageHeartRate:
-                                cardData.summary.heartRateCount > 0
-                                  ? cardData.summary.totalHeartRate /
-                                    cardData.summary.heartRateCount
-                                  : undefined,
-                            }}
-                            dailyDistances={cardData.summary.dailyDistances}
-                            interval={interval}
-                            activities={
-                              interval === 'day'
-                                ? cardData.summary.activities
-                                : undefined
-                            }
-                          />
-                        )
-                      )}
-                    </div>
-                  )}
-                </VirtualList>
-              )}
-            </div>
+        </section>
+      );
+    }
+
+    if (viewMode === 'week') {
+      return (
+        <section className={styles.section}>
+          {/* <UnifiedTitle as="h2" variant="section">
+            {WEEK_SECTION_TITLE}
+          </UnifiedTitle> */}
+
+          <div className={`${styles.periodGrid} ${styles.weekGrid}`}>
+            {weeklySummaries.map((summary) => (
+              <PeriodCard
+                key={summary.key}
+                summary={summary}
+                scaleLabel={IS_CHINESE ? '周内分布' : 'Week Breakdown'}
+                tooltipLabelFormatter={(value) =>
+                  getWeeklyTooltipLabel(summary.key, value)
+                }
+              />
+            ))}
           </div>
-        </div>
-      )}
-    </div>
+        </section>
+      );
+    }
+
+    if (viewMode === 'month') {
+      return (
+        <section className={styles.section}>
+          {/* <UnifiedTitle as="h2" variant="section">
+            {MONTH_SECTION_TITLE}
+          </UnifiedTitle> */}
+
+          <div className={`${styles.periodGrid} ${styles.monthGrid}`}>
+            {monthlySummaries.map((summary) => (
+              <PeriodCard
+                key={summary.key}
+                summary={summary}
+                scaleLabel={getMonthlyScaleLabel(summary.key)}
+                tooltipLabelFormatter={(value) =>
+                  getMonthlyTooltipLabel(summary.key, value)
+                }
+              />
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    if (viewMode === 'year') {
+      return (
+        <section className={styles.section}>
+          {/* <UnifiedTitle as="h2" variant="section">
+            {YEAR_SECTION_TITLE}
+          </UnifiedTitle> */}
+
+          <div className={`${styles.periodGrid} ${styles.yearGrid}`}>
+            {yearlySummaries.map((summary) => (
+              <PeriodCard
+                key={summary.key}
+                summary={summary}
+                scaleLabel={getYearlyScaleLabel(summary.key)}
+                tooltipLabelFormatter={(value) =>
+                  getYearlyTooltipLabel(summary.key, value)
+                }
+              />
+            ))}
+          </div>
+        </section>
+      );
+    }
+  };
+
+  return (
+    <>
+      <Helmet>
+        <title>{SUMMARY_PAGE_TITLE}</title>
+      </Helmet>
+
+      <div className={styles.activityList}>
+        <StickyHeader
+          className={styles.overviewSticky}
+          compactClassName={styles.overviewStickyCompact}
+          innerClassName={styles.overviewStickyInner}
+          titleClassName={styles.archiveTitle}
+          secondaryClassName={styles.viewSwitcher}
+          actionsClassName={styles.archiveActions}
+          title={<SiteLogo to="/" className={styles.logoLink} imageClassName={styles.logo} />}
+          secondary={
+            <nav className='flex gap-0.5' aria-label={IS_CHINESE ? '概览视图' : 'Training archive views'}>
+              {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
+                <ViewButton
+                  key={mode}
+                  isActive={viewMode === mode}
+                  label={VIEW_LABELS[mode].label}
+                  onClick={() => setViewMode(mode)}
+                />
+              ))}
+            </nav>
+          }
+          actions={
+            <>
+              <Link
+                to="/"
+                className={styles.homeButton}
+                aria-label={IS_CHINESE ? '回到首页' : 'Back to home'}
+                title={IS_CHINESE ? '回到首页' : 'Back to home'}
+              >
+                <span className={styles.homeText}>{HOME_PAGE_TITLE}</span>
+              </Link>
+              <ThemeToggleButton
+                className={styles.themeToggleButton}
+                iconClassName={styles.themeToggleIcon}
+              />
+            </>
+          }
+        />
+
+        {renderContent()}
+      </div>
+    </>
   );
 };
 

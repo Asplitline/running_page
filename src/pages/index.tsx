@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Analytics } from '@vercel/analytics/react';
-import { Helmet } from 'react-helmet-async';
 import Layout from '@/components/Layout';
 import LocationStat from '@/components/LocationStat';
 import RunMap from '@/components/RunMap';
@@ -10,7 +9,7 @@ import YearsStat from '@/components/YearsStat';
 import useActivities from '@/hooks/useActivities';
 import useSiteMetadata from '@/hooks/useSiteMetadata';
 import { useInterval } from '@/hooks/useInterval';
-import { IS_CHINESE } from '@/utils/const';
+import { IS_CHINESE, getHeatmapFilterTitle } from '@/utils/const';
 import {
   Activity,
   IViewState,
@@ -25,7 +24,10 @@ import {
   titleForShow,
   RunIds,
 } from '@/utils/utils';
-import { useTheme, useThemeChangeCounter } from '@/hooks/useTheme';
+import { useThemeChangeCounter } from '@/hooks/useTheme';
+import pageStyles from './index.module.css';
+import StickyHeader from '@/components/StickyHeader';
+import UnifiedTitle from '@/components/UnifiedTitle';
 
 const Index = () => {
   const { siteTitle, siteUrl } = useSiteMetadata();
@@ -162,7 +164,7 @@ const Index = () => {
       }
       setCurrentFilter({ item, func });
       setRunIndex(-1);
-      setTitle(`${item} ${name} Running Heatmap`);
+      setTitle(getHeatmapFilterTitle(item, name));
       // Reset single run state when changing filters
       setSingleRunId(null);
       if (window.location.hash) {
@@ -386,17 +388,19 @@ const Index = () => {
     };
   }, [year]);
 
-  const { theme } = useTheme();
-
   return (
     <Layout>
-      <Helmet>
-        <html lang="en" data-theme={theme} />
-      </Helmet>
-      <div className="w-full lg:w-1/3">
-        <h1 className="my-12 mt-6 text-5xl font-extrabold italic">
-          <a href={siteUrl}>{siteTitle}</a>
-        </h1>
+      <div className={pageStyles.colSide}>
+        <StickyHeader
+          className={pageStyles.titleSticky}
+          innerClassName={pageStyles.titleStickyInner}
+          enableCompact={false}
+          title={
+            <UnifiedTitle as="h1" href={siteUrl} variant="home">
+              {siteTitle}
+            </UnifiedTitle>
+          }
+        />
         {(viewState.zoom ?? 0) <= 3 && IS_CHINESE ? (
           <LocationStat
             changeYear={changeYear}
@@ -407,7 +411,7 @@ const Index = () => {
           <YearsStat year={year} onClick={changeYear} />
         )}
       </div>
-      <div className="w-full lg:w-2/3" id="map-container">
+      <div className={pageStyles.colMap} id="map-container">
         <RunMap
           title={title}
           viewState={viewState}

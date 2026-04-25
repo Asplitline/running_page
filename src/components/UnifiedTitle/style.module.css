@@ -1,0 +1,47 @@
+.titleBase {
+  margin: 0;
+  padding-top: 0;
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  line-height: 1.02;
+  letter-spacing: -0.036em;
+  font-weight: 700;
+  font-style: italic;
+  color: color-mix(in oklch, var(--ui-text) 94%, white 6%);
+}
+
+:global(html[data-theme='light']) .titleBase {
+  color: #0f172a;
+  text-shadow: none;
+}
+
+.titleHome {
+  font-size: clamp(1.82rem, 3vw, 2.2rem);
+  letter-spacing: -0.038em;
+}
+
+.titleSection {
+  font-size: clamp(1.72rem, 2.7vw, 2.05rem);
+}
+
+.titleBase a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.titleBase a:hover,
+.titleBase a:focus-visible {
+  color: color-mix(in oklch, var(--ui-accent-primary) 72%, var(--ui-text) 28%);
+}
+
+@media (max-width: 768px) {
+  .titleHome {
+    font-size: clamp(1.85rem, 6vw, 2.35rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titleBase a {
+    transition: none;
+  }
+}

@@ -1,245 +1,1168 @@
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
 .activityList {
-  padding: 20px 20px 0 20px;
-  background-color: var(--color-background);
-  color: var(--color-primary);
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --divider-soft: color-mix(in oklch, var(--ui-border-soft) 72%, transparent);
+  --divider-subtle: color-mix(in oklch, var(--ui-border-soft) 58%, transparent);
+  --card-outline: color-mix(in oklch, var(--ui-border) 50%, transparent);
+  position: relative;
+  padding: clamp(20px, 3vw, 40px) clamp(18px, 4vw, 56px) var(--space-3xl);
+  background: var(--ui-page-background);
+  color: var(--ui-text);
+  font-family: 'Manrope', var(--font-sans), sans-serif;
+  overflow-x: clip;
 }
 
-/* Default scrollbar color variables for this component. You can override these in a higher-level CSS or :root. */
-:root {
-  --color-scrollbar-thumb: var(--color-primary, rgba(0, 0, 0, 0.4));
-  --color-scrollbar-thumb-hover: var(--color-primary, rgba(0, 0, 0, 0.6));
+:global(html[data-theme='dark']) .activityList {
+  --bg-header: #0f172a;
+  --bg-page: #08111f;
+  --bg-control: #111827;
+  --bg-control-active: color-mix(in oklch, var(--bg-control) 88%, #2ea79a 12%);
+  --border-default: rgba(148, 163, 184, 0.18);
+  --border-active: #2f9f95;
+  --text-primary: #e5e7eb;
+  --text-secondary: #94a3b8;
+  --accent: #2ea79a;
 }
 
-/* rc-virtual-list renders its scrollbar elements with classnames we can target globally. */
-:global(.rc-virtual-list-scrollbar) {
+
+.overviewStickyInner,
+.section {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.overviewSticky {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-sizing: border-box;
+  /* 抵消 .activityList 的上内边距，避免渐变条下方才出现、顶上留一截页面底色 */
+  margin-top: calc(-1 * clamp(20px, 3vw, 40px));
+  margin-inline: calc(-1 * clamp(18px, 4vw, 56px));
+  padding-inline: clamp(18px, 4vw, 56px);
+  margin-bottom: var(--space-xs);
+  background: transparent;
+  /* border-bottom: 1px solid color-mix(in oklch, var(--ui-border) 80%, transparent); */
+  border-radius: 14px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition:
+    background 0.24s ease,
+    backdrop-filter 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease;
+}
+
+:global(html[data-theme='light']) .overviewSticky {
   background: transparent;
 }
 
-:global(.rc-virtual-list-scrollbar-thumb) {
-  background: var(--color-scrollbar-thumb) !important;
-  border-radius: 4px;
+:global(html[data-theme='dark']) .overviewSticky {
+  background: transparent;
+  /* border-bottom: 1px solid rgba(255, 122, 26, 0.16); */
 }
 
-:global(.rc-virtual-list-scrollbar-thumb:hover) {
-  background: var(--color-scrollbar-thumb-hover) !important;
+.overviewStickyCompact {
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--divider-soft);
+  box-shadow: 0 1px 0 color-mix(in oklch, var(--ui-text) 4%, transparent);
+  border-radius: 14px;
 }
 
-.filterContainer {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  overflow: visible;
+:global(html[data-theme='light']) .overviewStickyCompact {
+  background: color-mix(in oklch, var(--color-background) 90%, transparent);
+  border-bottom: 1px solid var(--divider-subtle);
+  box-shadow: 0 1px 0 color-mix(in oklch, var(--ui-text) 6%, transparent);
 }
 
-.filterContainer select {
-  appearance: none;
-  width: 90px;
-  padding: 10px;
-  border-radius: 5px;
-  border: 1px solid var(--color-run-table-thead);
-  background-color: var(--color-run-row-hover-background);
-  color: var(--color-run-table-thead);
-  cursor: pointer;
-  text-align: center;
-  text-transform: capitalize;
-  box-sizing: border-box;
+:global(html[data-theme='dark']) .overviewStickyCompact {
+  background: color-mix(in oklch, var(--bg-header) 90%, var(--bg-page) 10%);
 }
 
-.summaryContainer {
-  /* display: grid;
-  justify-content: center;
-  grid-template-columns: repeat(auto-fit, minmax(280px, auto));
-  gap: 20px; */
-  /* position: relative; */
-  width: 100%;
-  height: 100%;
-  /* overflow: auto;
-  will-change: transform; */
-}
-
-.activityCard {
-  background-color: var(--color-run-row-hover-background);
-  border: 1px solid var(--color-activity-card);
-  border-radius: 8px;
-  padding: 16px;
-  width: 280px;
-  box-shadow: 0 4px 8px var(--color-run-row-hover-background);
-  transition: transform 0.2s;
-  position: relative;
-}
-
-.activityCard:hover {
-  transform: translateY(-5px);
-}
-
-/* Flip card styles */
-.activityCardFlippable {
-  perspective: 1000px;
-  padding: 0;
-  /* Remove padding for flippable cards */
-}
-
-.cardInner {
-  position: relative;
-  width: 100%;
-  transition: transform 0.6s;
-  transform-style: preserve-3d;
-}
-
-.cardInner.flipped {
-  transform: rotateY(180deg);
-}
-
-.cardFront,
-.cardBack {
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  border-radius: 8px;
-  padding: 16px;
-  box-sizing: border-box;
-  background-color: var(--color-run-row-hover-background);
-}
-
-.cardBack {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  transform: rotateY(180deg);
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.routeContainer {
-  flex: 1;
-  display: flex;
+.overviewStickyInner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto;
   align-items: center;
-  justify-content: center;
+  column-gap: 12px;
+  row-gap: 0;
+  min-height: 78px;
+  padding-block: 14px;
+  padding-inline: 0;
+  box-sizing: border-box;
+  transition:
+    min-height 0.24s ease,
+    row-gap 0.24s ease,
+    column-gap 0.24s ease,
+    padding 0.24s ease;
+}
+
+.overviewStickyCompact .overviewStickyInner {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto;
+  row-gap: 0;
+  column-gap: 10px;
+  min-height: 66px;
+  padding-block: 10px;
+  align-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overviewSticky,
+  .overviewStickyInner,
+  .overviewSticky .archiveTitle,
+  .viewSwitcher,
+  .viewButton {
+    transition: none;
+  }
+}
+
+.archiveActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  align-self: center;
+}
+
+.archiveEyebrow,
+.sectionEyebrow,
+.periodKicker {
   margin: 0;
-  padding: 16px;
-  max-height: 100%;
-  overflow: hidden;
+  color: var(--ui-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
-.activityName {
-  font-size: 1.5em;
-  margin-bottom: 10px;
-  color: var(--color-primary);
+.archiveTitle {
+  margin: 0;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: clamp(1.68rem, 2.2vw, 2rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  max-width: 8ch;
+  color: var(--ui-text);
+  transition: font-size 0.24s ease, line-height 0.24s ease;
 }
 
-.activityDetails p {
-  margin: 8px 0;
-  color: var(--color-run-table-thead);
+.archiveTitle > h1 {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
 }
 
-.activityDetails strong {
-  color: var(--color-primary);
+.archiveTitleContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-.chart {
-  height: 250px;
-  width: 100%;
-  background-color: var(--color-activity-card);
-  display: flex;
+.archiveTitleContent > h1 {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+  min-width: 0;
+}
+
+
+.summaryLogo {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--card-outline);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.overviewStickyCompact .archiveTitle {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 1.18rem;
+  line-height: 1;
+  max-width: none;
+}
+
+.themeToggleButton {
+  appearance: none;
+  border: 1px solid var(--ui-control-border);
+  background: color-mix(in oklch, var(--ui-control-surface) 94%, var(--color-background) 6%);
+  color: var(--ui-text-secondary);
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-top: 10px;
-}
-
-.smallHomeButton {
-  width: 90px;
-  padding: 4px 12px;
-  background-color: var(--color-primary);
-  color: var(--color-background);
-  border: none;
-  border-radius: 5px;
   cursor: pointer;
-  margin-right: 20px;
+  transition:
+    transform 0.18s ease-out,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
-.smallHomeButton:hover {
-  background-color: var(--color-secondary);
-}
-
-.lifeContainer {
-  display: flex;
-  flex-direction: column;
+.homeButton {
+  border: 1px solid var(--ui-control-border);
+  background: color-mix(in oklch, var(--ui-control-surface) 94%, var(--color-background) 6%);
+  color: var(--ui-text-secondary);
+  min-width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  text-decoration: none;
+  padding: 0 12px;
+  transition:
+    transform 0.18s ease-out,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.themeToggleButton:hover,
+.themeToggleButton:focus-visible,
+.homeButton:hover,
+.homeButton:focus-visible {
+  transform: none;
+  border-color: color-mix(in oklch, var(--ui-accent-primary) 28%, var(--ui-control-border) 72%);
+  background: color-mix(in oklch, var(--ui-surface-strong) 72%, var(--ui-control-surface) 28%);
+  color: var(--ui-text);
+  box-shadow: none;
+}
+
+:global(html[data-theme='dark']) .themeToggleButton,
+:global(html[data-theme='dark']) .homeButton {
+  background: var(--bg-control);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+:global(html[data-theme='dark']) .themeToggleButton:hover,
+:global(html[data-theme='dark']) .themeToggleButton:focus-visible,
+:global(html[data-theme='dark']) .homeButton:hover,
+:global(html[data-theme='dark']) .homeButton:focus-visible {
+  background: color-mix(in oklch, var(--bg-control) 82%, #1a2a3f 18%);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+
+.themeToggleIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.homeIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.homeText {
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.viewSwitcher {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-top: 0;
+  padding: 4px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklch, var(--ui-border) 88%, transparent);
+  background: color-mix(in oklch, var(--ui-control-surface) 96%, var(--color-background) 4%);
+  transition: margin 0.24s ease;
+}
+
+:global(html[data-theme='dark']) .viewSwitcher {
+  border-color: var(--border-default);
+  background: var(--bg-control);
+  /* box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08); */
+}
+
+.overviewStickyCompact .viewSwitcher {
+  grid-column: 2;
+  grid-row: 1;
+  margin-inline-start: 0;
+  margin-top: 0;
+  min-width: 0;
+  justify-self: end;
+  align-self: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 4px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.overviewStickyCompact .archiveActions {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  align-self: center;
+}
+
+.viewButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ui-text-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.24s ease,
+    background-color 0.24s ease,
+    color 0.24s ease,
+    min-height 0.24s ease,
+    padding 0.24s ease,
+    min-width 0.24s ease;
+}
+
+.overviewStickyCompact .viewButton {
+  min-height: 40px;
+  min-width: 56px;
+  padding: 8px 11px;
+}
+
+.overviewStickyCompact .viewButtonLabel {
+  font-size: 0.9rem;
+}
+
+.viewButton:hover,
+.viewButton:focus-visible {
+  border-color: color-mix(in oklch, var(--ui-accent-primary) 16%, transparent);
+  color: var(--ui-text);
+  background: color-mix(in oklch, var(--ui-accent-primary) 5%, transparent);
+}
+
+:global(html[data-theme='dark']) .viewButton {
+  color: var(--text-secondary);
+}
+
+:global(html[data-theme='dark']) .viewButton:hover,
+:global(html[data-theme='dark']) .viewButton:focus-visible {
+  border-color: var(--border-default);
+  background: color-mix(in oklch, var(--bg-control) 86%, #1a2b41 14%);
+  color: var(--text-primary);
+}
+
+.viewButtonActive {
+  background: color-mix(in oklch, var(--ui-accent-primary) 8%, var(--ui-control-surface) 92%);
+  border-color: color-mix(in oklch, var(--ui-accent-primary) 32%, var(--ui-border) 68%);
+  color: color-mix(in oklch, var(--ui-accent-primary) 52%, var(--ui-text) 48%);
+  /* box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--ui-accent-primary) 22%, transparent); */
+}
+
+:global(html[data-theme='dark']) .viewButtonActive {
+  background: var(--bg-control-active);
+  border-color: var(--border-active);
+  color: var(--accent);
+  /* box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.14); */
+}
+
+.viewButtonLabel {
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-lg);
+  margin-top: var(--space-xl);
+}
+
+.recentHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.8fr);
+  gap: var(--space-md);
+}
+
+.recentHeroPrimary,
+.recentHeroSecondary,
+.periodCard,
+.recentCard,
+.lifeStage,
+.emptyState {
+  border: 1px solid var(--card-outline);
+  background: var(--ui-surface);
+  border-radius: 14px;
+}
+
+.recentHeroPrimary {
+  display: grid;
+  gap: var(--space-sm);
+  padding: clamp(24px, 4vw, 40px);
+}
+
+.recentHeroLabel {
+  color: var(--ui-text-muted);
+  font-size: 0.84rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.recentHeroValue {
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: clamp(2.8rem, 6vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+.recentHeroNote {
+  margin: 0;
+  color: var(--ui-text-secondary);
+  font-size: 1rem;
+  line-height: 1.68;
+  max-width: 44ch;
+}
+
+.recentHeroSecondary {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.recentHeroSecondary > div {
+  display: grid;
+  gap: var(--space-xs);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--divider-soft);
+}
+
+.recentHeroSecondary > div:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.recentHeroSecondary span,
+.recentMeta dt,
+.periodStats span {
+  color: var(--ui-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recentHeroSecondary strong,
+.recentMeta dd,
+.periodStats strong {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.recentGrid,
+.periodGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-sm);
+  align-items: start;
+}
+
+.dayGrid {
+  gap: var(--space-sm);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.recentCard {
+  display: grid;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.28s ease;
+}
+
+.recentCard:hover {
+  transform: none;
+  border-color: color-mix(in oklch, var(--ui-text-secondary) 24%, var(--card-outline) 76%);
+}
+
+.dayCard {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto 1fr;
+  gap: var(--space-md);
+  height: 100%;
+}
+
+.recentCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.dayCard .recentCardHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.recentDate {
+  margin: 0 0 var(--space-2xs);
+  color: var(--ui-text-muted);
+  font-size: 0.82rem;
+}
+
+.recentTitle {
+  margin: 0;
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: 1.18rem;
+  line-height: 1.12;
+}
+
+.runZoneTooltipWrap {
+  position: relative;
+  display: inline-flex;
+  margin-top: 4px;
+  max-width: 100%;
+}
+
+.runZoneBadge {
+  display: inline;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: default;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--ui-border);
+}
+
+.runZoneBadge:focus-visible {
+  outline: 2px solid var(--ui-border);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.runZoneBadgeZ1 {
+  color: var(--ui-heart-z1);
+}
+
+.runZoneBadgeZ2 {
+  color: var(--ui-heart-z2);
+}
+
+.runZoneBadgeZ3 {
+  color: var(--ui-heart-z3);
+}
+
+.runZoneBadgeZ4 {
+  color: var(--ui-heart-z4);
+}
+
+.runZoneBadgeZ5 {
+  color: var(--ui-heart-z5);
+}
+
+.runZoneTooltip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  width: min(280px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--card-outline);
+  border-radius: 10px;
+  background: var(--ui-surface);
+  color: var(--ui-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.45;
+  /* box-shadow: var(--ui-shadow); */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    visibility 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .runZoneTooltipWrap:hover .runZoneTooltip,
+  .runZoneTooltipWrap:focus-within .runZoneTooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .runZoneTooltip {
+    display: none;
+  }
+}
+
+.recentDistance {
+  color: color-mix(in oklch, var(--ui-accent-primary) 66%, var(--ui-text) 34%);
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.recentMeta {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.dayCard .recentMeta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--divider-soft);
+}
+
+.recentMeta > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--divider-soft);
+}
+
+.dayCard .recentMeta > div {
+  display: grid;
+  justify-content: start;
+  gap: 2px;
+  padding-top: 0;
+  padding-left: 0;
+  border-top: none;
+  border-left: none;
+}
+
+.dayCard .recentMeta > div:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.dayCard .recentMeta dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.dayCard .recentMeta dd {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.dayCard .recentMeta > div:nth-child(1) dd {
+  color: color-mix(in oklch, var(--ui-accent-primary) 64%, var(--ui-text) 36%);
+}
+
+.dayCard .recentMeta > div:nth-child(3) dd {
+  color: var(--ui-text);
+}
+
+.dayCard .recentMeta > div:nth-child(4) dd {
+  color: var(--ui-text);
+}
+
+.dayCard .recentMeta > div:nth-child(5) dd {
+  color: var(--ui-accent-neutral);
+}
+
+.splitBlock {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--divider-soft);
+  min-height: 228px;
+}
+
+.splitHeader,
+.splitRow {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(0, 84px);
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+.splitHeader {
+  color: var(--ui-text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.splitList {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-height: 154px;
+}
+
+.splitRow {
+  padding-top: 6px;
+  border-top: 1px solid var(--divider-soft);
+}
+
+.splitRow:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.splitKm {
+  color: var(--ui-text-secondary);
+  font-weight: 700;
+}
+
+.splitValue {
+  /* color: var(--ui-accent-primary); */
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.splitRow .splitValue:nth-child(3) {
+  color: var(--ui-text);
+}
+
+.heartValueZ1 {
+  color: var(--ui-heart-z1);
+}
+
+.heartValueZ2 {
+  color: var(--ui-heart-z2);
+}
+
+.heartValueZ3 {
+  color: var(--ui-heart-z3);
+}
+
+.heartValueZ4 {
+  color: var(--ui-heart-z4);
+}
+
+.heartValueZ5 {
+  color: var(--ui-heart-z5);
+}
+
+.splitPagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  padding-top: 4px;
+}
+
+.splitPageButton {
+  appearance: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.splitPageButton:hover,
+.splitPageButton:focus-visible {
+  color: var(--ui-text);
+}
+
+.splitPageButton:disabled {
+  color: var(--ui-text-muted);
+  cursor: default;
+}
+
+.splitPageStatus {
+  color: var(--ui-text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.periodCard {
+  display: grid;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+.periodGrid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: start;
+}
+
+.periodGrid .periodCard {
+  grid-column: span 4;
+}
+
+.weekGrid .periodCard:first-child,
+.monthGrid .periodCard:first-child {
+  grid-column: span 8;
+}
+
+.weekGrid .periodCard:nth-child(2),
+.monthGrid .periodCard:nth-child(2) {
+  grid-column: span 4;
+}
+
+.yearGrid .periodCard:first-child {
+  grid-column: span 12;
+}
+
+.yearGrid .periodCard:nth-child(n + 2) {
+  grid-column: span 6;
+}
+
+.periodCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.periodTitle {
+  margin: var(--space-xs) 0 0;
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: 1.62rem;
+  line-height: 1;
+}
+
+.periodCount {
+  margin: 0;
+  color: var(--ui-text-secondary);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.periodStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.periodStats > div {
+  display: grid;
+  gap: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--divider-soft);
+}
+
+.periodStats > div:nth-child(1) strong,
+.periodStats > div:nth-child(2) strong {
+  color: color-mix(in oklch, var(--ui-accent-primary) 68%, var(--ui-text) 32%);
+}
+
+.periodStats > div:nth-child(3) strong {
+  color: color-mix(in oklch, var(--ui-accent-secondary) 72%, var(--ui-text) 28%);
+}
+
+.periodChart {
+  min-height: 220px;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--divider-soft);
+}
+
+.lifeHeader {
+  display: block;
 }
 
 .yearSelector {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 20px;
-  padding: 10px;
+  gap: var(--space-xs);
 }
 
 .yearButton {
-  padding: 8px 16px;
-  background-color: transparent;
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  border-radius: 5px;
+  appearance: none;
+  padding: 10px 14px;
+  border: 1px solid var(--card-outline);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font-size: 0.92rem;
+  font-weight: 700;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
+  transition:
+    border-color 0.24s ease,
+    background-color 0.24s ease,
+    color 0.24s ease;
 }
 
-.yearButton:hover {
-  background-color: var(--color-primary);
-  color: var(--color-background);
+.yearButton:hover,
+.yearButton:focus-visible {
+  border-color: var(--ui-text-secondary);
+  color: var(--ui-text);
 }
 
 .yearButtonActive {
-  background-color: var(--color-primary);
-  color: var(--color-background);
+  background: color-mix(in oklch, var(--ui-text) 18%, var(--ui-control-surface) 82%);
+  color: var(--ui-text);
+  border-color: color-mix(in oklch, var(--ui-text) 34%, var(--ui-border) 66%);
 }
 
-.yearSummarySvg {
-  max-width: 100%;
-  height: auto;
-  max-height: 80vh;
+.lifeStage {
+  min-height: 420px;
+  padding: clamp(18px, 3vw, 32px);
 }
 
-/* Inner wrapper to center the virtual list rows and constrain width */
-.summaryInner {
-  display: flex;
-  justify-content: center;
+.lifeSvg {
   width: 100%;
-  box-sizing: border-box;
-  padding: 0 10px;
-}
-
-/* Prevent content from sitting flush against the custom scrollbar. The inner wrapper (direct child) gets right padding. */
-.summaryInner > div {
-  padding-right: 16px;
-  box-sizing: content-box;
-}
-
-/* Row container used by VirtualList rows */
-.rowContainer {
-  display: flex;
-  padding: 10px 0;
-  justify-content: flex-start;
-  padding-right: 12px;
-  box-sizing: border-box;
-}
-
-/* rc-virtual-list view and body panes: ensure there's a little inner spacing so content doesn't overlap scrollbar */
-:global(.rc-virtual-list-holder-inner),
-:global(.rc-virtual-list-holder) {
-  padding-right: 4px;
-}
-
-.lifeContainer > svg,
-.lifeContainer :global(svg) {
-  max-width: 100%;
   height: auto;
+}
+
+.loadingState,
+.emptyState {
+  display: grid;
+  place-items: start;
+  gap: var(--space-sm);
+  padding: clamp(24px, 4vw, 36px);
+}
+
+.emptyState h2 {
+  margin: 0;
+  font-family: 'Exo 2', var(--font-sans), sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1;
+}
+
+.emptyState p {
+  margin: 0;
+  color: var(--ui-text-secondary);
+  line-height: 1.7;
+  max-width: 46ch;
+}
+
+@media (max-width: 980px) {
+  .dayGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .periodGrid,
+  .periodGrid .periodCard,
+  .weekGrid .periodCard:first-child,
+  .monthGrid .periodCard:first-child,
+  .weekGrid .periodCard:nth-child(2),
+  .monthGrid .periodCard:nth-child(2),
+  .yearGrid .periodCard:first-child,
+  .yearGrid .periodCard:nth-child(n + 2) {
+    grid-template-columns: 1fr;
+    grid-column: auto;
+  }
+
+  .dayCard {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+
+  .dayCard .recentMeta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .dayCard .recentMeta > div {
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--divider-soft);
+  }
+
+  .dayCard .recentMeta > div:first-child {
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .splitHeader,
+  .splitRow {
+    grid-template-columns: 40px minmax(0, 1fr) minmax(0, 72px);
+  }
+}
+
+@media (max-width: 720px) {
+  .dayGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .activityList {
+    padding-inline: 16px;
+    padding-bottom: var(--space-2xl);
+  }
+
+  .overviewSticky {
+    margin-inline: -16px;
+    padding-inline: 16px;
+    border-radius: 0;
+  }
+
+  .overviewStickyInner {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 0;
+    row-gap: 8px;
+    min-height: auto;
+    padding-block: 12px 10px;
+  }
+
+  .archiveTitle {
+    max-width: 100%;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    font-size: clamp(1.56rem, 6.2vw, 1.92rem);
+  }
+
+  .archiveTitleContent {
+    gap: 8px;
+  }
+
+  .summaryLogo {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .viewSwitcher {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    gap: 4px;
+    padding: 3px;
+  }
+
+  .archiveActions {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+    gap: 6px;
+  }
+
+  .overviewSticky:not(.overviewStickyCompact) .archiveActions {
+    position: static;
+    right: auto;
+    bottom: auto;
+    z-index: auto;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .overviewStickyCompact .overviewStickyInner {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto;
+    column-gap: 8px;
+    min-height: 56px;
+    padding-block: 10px;
+  }
+
+  .overviewStickyCompact .viewSwitcher {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .overviewStickyCompact .archiveActions {
+    position: static;
+    width: auto;
+    height: auto;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .themeToggleButton,
+  .homeButton {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .viewButton {
+    min-height: 44px;
+    min-width: 58px;
+    padding: 10px 12px;
+  }
+
+  .recentCardHeader,
+  .periodCardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .periodStats {
+    grid-template-columns: 1fr;
+  }
+
+  .recentMeta > div {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .dayCard .recentMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .splitHeader,
+  .splitRow {
+    grid-template-columns: 36px minmax(0, 1fr) minmax(0, 68px);
+    font-size: 0.84rem;
+  }
+
+  .splitBlock {
+    min-height: 220px;
+  }
+
+  .splitList {
+    min-height: 150px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewButton,
+  .recentCard,
+  .yearButton {
+    transition: none;
+  }
 }

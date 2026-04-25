@@ -19,6 +19,7 @@ import {
   RUN_TRAIL_COLOR,
   MAP_TILE_STYLES,
   MAP_TILE_STYLE_DARK,
+  IS_CHINESE,
 } from './const';
 import {
   FeatureCollection,
@@ -51,8 +52,29 @@ export interface Activity {
   location_country?: string | null;
   summary_polyline?: string | null;
   average_heartrate?: number | null;
+  max_heartrate?: number | null;
   elevation_gain: number | null;
   average_speed: number;
+  average_cadence?: number | null;
+  cadence_trend?:
+    | {
+        first_half: number;
+        second_half: number;
+        direction: 'up' | 'down' | 'flat';
+      }
+    | null;
+  split_paces?:
+    | Array<{
+        km: number;
+        pace_seconds: number;
+      }>
+    | null;
+  split_heart_rates?:
+    | Array<{
+        km: number;
+        avg_hr: number | null;
+      }>
+    | null;
   streak: number;
 }
 
@@ -66,9 +88,12 @@ const titleForShow = (run: Activity): string => {
   if (run.name) {
     name = run.name;
   }
-  return `${name} ${date} ${distance} ${DIST_UNIT} ${
-    !run.summary_polyline ? '(No map data for this run)' : ''
-  }`;
+  const noMapNote = !run.summary_polyline
+    ? IS_CHINESE
+      ? '（本条暂无路线可画在地图上）'
+      : '(No route to show on the map for this activity)'
+    : '';
+  return `${name} ${date} ${distance} ${DIST_UNIT}${noMapNote ? ` ${noMapNote}` : ''}`;
 };
 
 const formatPace = (d: number): string => {

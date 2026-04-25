@@ -138,19 +138,27 @@ class TrackLoader:
         TODO refactor with _load_tcx_tracks
         """
         tracks = {}
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            future_to_file_name = {
-                executor.submit(load_func, file_name, activity_title_dict): file_name
-                for file_name in file_names
-            }
-        for future in concurrent.futures.as_completed(future_to_file_name):
-            file_name = future_to_file_name[future]
-            try:
-                t = future.result()
-            except TrackLoadError as e:
-                log.error(f"Error while loading {file_name}: {e}")
-            else:
-                tracks[file_name] = t
+        try:
+            with concurrent.futures.ProcessPoolExecutor() as executor:
+                future_to_file_name = {
+                    executor.submit(load_func, file_name, activity_title_dict): file_name
+                    for file_name in file_names
+                }
+            for future in concurrent.futures.as_completed(future_to_file_name):
+                file_name = future_to_file_name[future]
+                try:
+                    t = future.result()
+                except TrackLoadError as e:
+                    log.error(f"Error while loading {file_name}: {e}")
+                else:
+                    tracks[file_name] = t
+        except (OSError, PermissionError) as e:
+            log.warning(f"Process pool unavailable, falling back to serial loading: {e}")
+            for file_name in file_names:
+                try:
+                    tracks[file_name] = load_func(file_name, activity_title_dict)
+                except TrackLoadError as err:
+                    log.error(f"Error while loading {file_name}: {err}")
         return tracks
 
     @staticmethod

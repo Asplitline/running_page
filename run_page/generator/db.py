@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import random
 import string
@@ -45,7 +46,12 @@ ACTIVITY_KEYS = [
     "location_country",
     "summary_polyline",
     "average_heartrate",
+    "max_heartrate",
     "average_speed",
+    "average_cadence",
+    "cadence_trend",
+    "split_paces",
+    "split_heart_rates",
     "elevation_gain",
 ]
 
@@ -65,7 +71,12 @@ class Activity(Base):
     location_country = Column(String)
     summary_polyline = Column(String)
     average_heartrate = Column(Float)
+    max_heartrate = Column(Float)
     average_speed = Column(Float)
+    average_cadence = Column(Float)
+    cadence_trend = Column(String)
+    split_paces = Column(String)
+    split_heart_rates = Column(String)
     elevation_gain = Column(Float)
     streak = None
 
@@ -75,6 +86,8 @@ class Activity(Base):
             attr = getattr(self, key)
             if isinstance(attr, (datetime.timedelta, datetime.datetime)):
                 out[key] = str(attr)
+            elif key in {"cadence_trend", "split_paces", "split_heart_rates"}:
+                out[key] = json.loads(attr) if attr else None
             else:
                 out[key] = attr
 
@@ -144,7 +157,12 @@ def update_or_create_activity(session, run_activity):
                 start_date_local=run_activity.start_date_local,
                 location_country=location_country,
                 average_heartrate=run_activity.average_heartrate,
+                max_heartrate=run_activity.max_heartrate,
                 average_speed=float(run_activity.average_speed),
+                average_cadence=run_activity.average_cadence,
+                cadence_trend=run_activity.cadence_trend,
+                split_paces=run_activity.split_paces,
+                split_heart_rates=run_activity.split_heart_rates,
                 elevation_gain=current_elevation_gain,
                 summary_polyline=(
                     run_activity.map and run_activity.map.summary_polyline or ""
@@ -160,7 +178,12 @@ def update_or_create_activity(session, run_activity):
             activity.type = run_activity.type
             activity.subtype = run_activity.subtype
             activity.average_heartrate = run_activity.average_heartrate
+            activity.max_heartrate = run_activity.max_heartrate
             activity.average_speed = float(run_activity.average_speed)
+            activity.average_cadence = run_activity.average_cadence
+            activity.cadence_trend = run_activity.cadence_trend
+            activity.split_paces = run_activity.split_paces
+            activity.split_heart_rates = run_activity.split_heart_rates
             activity.elevation_gain = current_elevation_gain
             activity.summary_polyline = (
                 run_activity.map and run_activity.map.summary_polyline or ""
