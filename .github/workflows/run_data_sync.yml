@@ -2,6 +2,11 @@ name: Run Data Sync
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '试运行:只验证同步能否跑通,跳过 commit/push(不污染仓库)'
+        type: boolean
+        default: false
   schedule:
     - cron: '0 0 * * *'
   push:
@@ -75,7 +80,7 @@ jobs:
           python -m backend.sync_garmin.sync "$GARMIN_SECRET_STRING_CN" --is-cn
 
       - name: Push new runs
-        if: env.SAVE_DATA_IN_GITHUB_CACHE != 'true'
+        if: env.SAVE_DATA_IN_GITHUB_CACHE != 'true' && github.event.inputs.dry_run != 'true'
         run: |
           git config --local user.email 'action@github.com'
           git config --local user.name 'GitHub Action'
