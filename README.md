@@ -37,30 +37,25 @@ python-garminconnect（curl_cffi 绕过 Cloudflare），支持账密登录与中
 
 ```bash
 # 账密登录一次, 产出可复用的 token 串(中国区加 --is-cn)
-python -m backend.sync_garmin.make_secret <email> <password> --is-cn
+uv run python -m backend.sync_garmin.make_secret <email> <password> --is-cn
 ```
 
-把输出的 token 串存入 GitHub secret `GARMIN_SECRET_STRING_CN`，供 CI 复用。
+输出形如 `{"di_token":"...","di_refresh_token":"...","di_client_id":"..."}` 的
+JSON 串，整串 (含首尾大括号) 存入 GitHub secret `GARMIN_SECRET_STRING_CN`，供 CI 复用。
+粘贴时勿带首尾空格或换行。
 
 ### 2. 同步活动
 
 ```bash
 # 用 token 同步(中国区)
-python -m backend.sync_garmin.sync '<token>' --is-cn
+uv run python -m backend.sync_garmin.sync '<token>' --is-cn
 
-# 可选: 下载 tcx / fit 格式
-python -m backend.sync_garmin.sync '<token>' --is-cn --tcx
-python -m backend.sync_garmin.sync '<token>' --is-cn --fit
+# 只同步跑步
+uv run python -m backend.sync_garmin.sync '<token>' --is-cn --only-run
 ```
 
-同步流程：下载活动文件到 `GPX_OUT/` → 落库 `backend/data.db` → 写出
+同步流程：下载活动 GPX 到 `GPX_OUT/` → 落库 `backend/data.db` → 写出
 `src/static/activities.json`(前端消费)。
-
-### CN → Global 互传 (可选)
-
-```bash
-python -m backend.sync_garmin.cn_to_global '<cn_token>' '<global_token>'
-```
 
 ## 前端
 
