@@ -71,6 +71,46 @@ jobs:
             ${{ env.DATA_CACHE_PREFIX }}-${{ github.sha }}-
             ${{ env.DATA_CACHE_PREFIX }}-
 
+      # Secret 体检:只暴露体征(长度/首尾字符/能否解析 JSON),绝不打印 token 内容
+      - name: Inspect Garmin CN secret
+        env:
+          GARMIN_SECRET_STRING_CN: ${{ secrets.GARMIN_SECRET_STRING_CN }}
+        run: |
+          python - <<'PY'
+          import json, os
+
+          s = os.environ.get("GARMIN_SECRET_STRING_CN")
+          if s is None:
+              print("[secret] 未设置(env 里没有该变量)")
+              raise SystemExit(0)
+
+          print(f"[secret] 长度={len(s)}")
+          if s == "":
+              print("[secret] 为空字符串 —— GitHub Secret 未配置或值为空")
+              raise SystemExit(0)
+
+          stripped = s.strip()
+          if stripped != s:
+              print(f"[secret] 首尾有空白!strip 后长度={len(stripped)}(粘贴时可能带了空格/换行)")
+          print(f"[secret] 首字符={s[0]!r} 尾字符={s[-1]!r}")
+          if s[0] != "{" or s[-1] != "}":
+              print("[secret] 首尾不是 {} —— 不是合法 JSON 对象串,极可能是旧值/错误粘贴")
+
+          try:
+              data = json.loads(s)
+          except json.JSONDecodeError as e:
+              print(f"[secret] JSON 解析失败: {e}(错在第 {e.pos} 个字符)")
+          else:
+              if not isinstance(data, dict):
+                  print(f"[secret] 解析出的是 {type(data).__name__} 而非对象 —— 值可能被多套了一层引号")
+              else:
+                  print(f"[secret] JSON 合法,keys={sorted(data.keys())}")
+                  want = {"di_token", "di_refresh_token", "di_client_id"}
+                  missing = want - set(data.keys())
+                  if missing:
+                      print(f"[secret] 缺少 make_secret 应有的 key: {sorted(missing)}")
+          PY
+
       # Garmin 中国区同步。生成 secret: python -m backend.sync_garmin.make_secret <email> <password> --is-cn
       # secret 是 JSON 串,必须走 env 注入并加引号,否则会被 shell 按空格/花括号拆断
       - name: Run sync Garmin CN script
