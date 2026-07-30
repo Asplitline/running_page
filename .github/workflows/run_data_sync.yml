@@ -116,6 +116,9 @@ jobs:
       - name: Run sync Garmin CN script
         env:
           GARMIN_SECRET_STRING_CN: ${{ secrets.GARMIN_SECRET_STRING_CN }}
+          # 跳过 Nominatim 反向地理编码:CN 活动逐条查会被 OSM 限流/掐连接而卡死,
+          # 且 runner 共享 IP 常被封。地名对可视化非必需,轨迹靠 GPX 渲染。
+          SKIP_REVERSE_GEOCODE: 'true'
         run: |
           python -m backend.sync_garmin.sync "$GARMIN_SECRET_STRING_CN" --is-cn
 
