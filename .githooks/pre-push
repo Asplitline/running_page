@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# push 前门禁:精确复刻 CI 的 lint/format 检查,本地过 = CI 过。
+# 对齐 CI 结构:Python 与前端两条线并行跑(各自内部串行),墙钟取慢的那条。
+# 不含 pnpm build(太重,留给 CI);eslint 不带 --fix、只拦 error,与 CI 行为一致。
+# 跳过检查:git push --no-verify(仅在明确知情时用)。
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+# 每条线的输出缓冲到独立文件,避免并行时终端输出交错;结束后按顺序回放
+tmp_py=$(mktemp)
+tmp_fe=$(mktemp)
+trap 'rm -f "$tmp_py" "$tmp_fe"' EXIT
+
+# Python 线:ruff + black,内部串行,与 ci.yml 一致
+check_python() {
+  if ! command -v uv >/dev/null 2>&1; then
+    echo "⚠ 未找到 uv,跳过 Python 检查"; return 0
+  fi
+  local rc=0
+  echo "▶ ruff check";   uv run ruff check .      || rc=1
+  echo "▶ black --check"; uv run black . --check   || rc=1
+  return $rc
+}
+
+# 前端线:prettier --check + eslint(无 --fix,只拦 error)
+check_frontend() {
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "⚠ 未找到 pnpm,跳过前端检查"; return 0
+  fi
+  local rc=0
+  echo "▶ prettier --check"; pnpm run check                       || rc=1
+  echo "▶ eslint";           pnpm exec eslint src --ext .ts,.tsx   || rc=1
+  return $rc
+}
+
+echo "== pre-push 检查(与 CI 对齐,两条线并行)=="
+
+check_python   >"$tmp_py" 2>&1 & pid_py=$!
+check_frontend >"$tmp_fe" 2>&1 & pid_fe=$!
+
+wait "$pid_py"; rc_py=$?
+wait "$pid_fe"; rc_fe=$?
+
+echo ""
+echo "── Python ──"
+cat "$tmp_py"
+echo "── 前端 ──"
+cat "$tmp_fe"
+
+if [ "$rc_py" -ne 0 ] || [ "$rc_fe" -ne 0 ]; then
+  echo ""
+  [ "$rc_py" -ne 0 ] && echo "✗ Python 线未通过"
+  [ "$rc_fe" -ne 0 ] && echo "✗ 前端线未通过"
+  echo "✗ push 被拦截:先修复上面的问题。"
+  echo "  自动修复:pnpm run format && pnpm run lint"
+  echo "  确需跳过:git push --no-verify"
+  exit 1
+fi
+
+echo ""
+echo "✓ 全部通过,允许 push"
