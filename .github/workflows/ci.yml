@@ -8,7 +8,9 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ['3.12', '3.13', '3.14']
+        # 暂不含 3.14:pydantic-core/numpy/duckdb 等多个 C/Rust 扩展尚无 cp314
+        # wheel,会源码编译失败;生态齐备后再加回。部署/同步实际用 3.12/3.13。
+        python-version: ['3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
         with:
