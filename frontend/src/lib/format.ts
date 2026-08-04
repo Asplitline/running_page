@@ -39,3 +39,7 @@ export const formatClock = (totalSeconds: number): string => {
   const ss = String(s).padStart(2, '0');
   return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 };
+
+// 公里数 → 千分位字符串 (用于总览大数字，如 2192 → "2,192")
+export const formatKm = (km: number): string =>
+  km.toLocaleString('en-US', { maximumFractionDigits: 1 });
