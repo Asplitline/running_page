@@ -12,7 +12,7 @@ FOLDER_DICT = {
 
 # 数据库随 backend 走(data.db 在 backend/ 内)
 SQL_FILE = os.path.join(current, "data.db")
-# 前端构建期消费的产物(必须落在 src/static/, parent=项目根)
-JSON_FILE = os.path.join(parent, "src", "static", "activities.json")
+# 前端构建期消费的产物(编译期 import,必须落在 frontend/src/static/)
+JSON_FILE = os.path.join(parent, "frontend", "src", "static", "activities.json")
 # 已同步文件记录
 SYNCED_FILE = os.path.join(parent, "imported.json")

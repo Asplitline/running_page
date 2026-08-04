@@ -28,3 +28,11 @@ route.svg
 
 .env
 *.db-journal
+
+# frontend 数据产物(CI 生成,不入库)
+frontend/src/static/activities.json
+frontend/dist
+frontend/node_modules
+
+# 个人跑步数据导出,不入库
+aiyuanzi-running.html

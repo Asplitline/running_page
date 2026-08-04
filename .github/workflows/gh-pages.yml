@@ -60,7 +60,7 @@ jobs:
             assets
             GPX_OUT
             backend/data.db
-            src/static/activities.json
+            frontend/src/static/activities.json
             imported.json
           key: ${{ inputs.data_cache_prefix }}-${{ github.sha }}-${{ github.run_id }}
           restore-keys: |
@@ -90,14 +90,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Build
-        run: PATH_PREFIX=/ pnpm build
+        run: PATH_PREFIX=/ pnpm --filter @running-page/frontend build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload dist repository
           name: pages-artifact
-          path: './dist'
+          path: './frontend/dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

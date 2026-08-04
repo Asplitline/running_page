@@ -1,0 +1,137 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   设计系统 · Forest / Athletic Archive
+   来源:spec-design.md(基于 aiyuanzi-running.html)
+   字体先用系统栈占位，后补自托管 woff2 只需替换 @font-face。
+   ============================================================ */
+
+/* ---- 字体自托管占位:S2 用系统近似，后续放 public/fonts/ 换回 ----
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-Variable.woff2') format('woff2');
+  font-weight: 400 800;
+  font-display: swap;
+}
+--- 目前 --font-display 指向系统近似，补字体时启用上面 @font-face 即可 --- */
+
+@theme {
+  /* ---- 中性 (森林绿灰，亮色)---- */
+  --color-paper: #edf1ee;
+  --color-card: #ffffff;
+  --color-card-2: #f5f8f6;
+  --color-ink: #17211c;
+  --color-ink-2: #57635d;
+  --color-ink-3: #94a099;
+  --color-line: #dce3de;
+  --color-line-2: #e8ede9;
+
+  /* ---- 心率分区 Z1-Z5(绿→黄→橙→红)---- */
+  --color-z1: #58b99d;
+  --color-z2: #82be53;
+  --color-z3: #e5b93c;
+  --color-z4: #ef7d33;
+  --color-z5: #dc4c3f;
+
+  /* ---- 强调 / 轨迹 ---- */
+  --color-accent: #ef7d33;
+  --color-route: #378add;
+  --color-bar-muted: #dce3de;
+
+  /* ---- 字体 (系统栈占位)---- */
+  --font-display:
+    'Archivo', 'Noto Sans SC', -apple-system, system-ui, sans-serif;
+  --font-body:
+    'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ---- 圆角 ---- */
+  --radius-card: 14px;
+  --radius-pill: 99px;
+  --radius-sm: 6px;
+  --radius-xs: 2px;
+
+  /* ---- 阴影 (极轻)---- */
+  --shadow-soft: 0 1px 2px rgb(23 33 28 / 0.05);
+}
+
+/* ---- 暗色主题：重定义 token，组件不感知 ---- */
+:root[data-theme='dark'],
+.dark {
+  --color-paper: #0f1513;
+  --color-card: #181f1c;
+  --color-card-2: #1e2723;
+  --color-ink: #e9eeeb;
+  --color-ink-2: #9da9a2;
+  --color-ink-3: #68746d;
+  --color-line: #28322d;
+  --color-line-2: #222b27;
+  --color-route: #5fa8e8;
+  --color-bar-muted: #2e3934;
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-paper: #0f1513;
+    --color-card: #181f1c;
+    --color-card-2: #1e2723;
+    --color-ink: #e9eeeb;
+    --color-ink-2: #9da9a2;
+    --color-ink-3: #68746d;
+    --color-line: #28322d;
+    --color-line-2: #222b27;
+    --color-route: #5fa8e8;
+    --color-bar-muted: #2e3934;
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3);
+  }
+}
+
+/* ---- 基础 ---- */
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 数字统一 tabular 对齐 */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* eyebrow 标志性小标签 (橙横杠签名) */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+.eyebrow::before {
+  content: '';
+  width: 22px;
+  height: 3px;
+  border-radius: var(--radius-xs);
+  background: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
