@@ -1,52 +1,63 @@
 import { Link } from 'react-router-dom';
-import { activitiesByDateDesc } from '@/data/activities';
-import { toKm, paceFromSpeed, formatDateDots } from '@/lib/format';
+import { activities } from '@/data/activities';
+import { TooltipProvider } from '@/components/ui/Tooltip';
+import StatsBar from '@/components/dashboard/StatsBar';
+import HeatmapCalendar from '@/components/dashboard/HeatmapCalendar';
+import PrSnapshot from '@/components/dashboard/PrSnapshot';
+import RecentRuns from '@/components/dashboard/RecentRuns';
 
-// S6 临时首页：最近跑步列表，点击进详情页。M3 起重构为仪表盘。
+// 首页成就仪表盘 (M3)。总览 + 热力日历 + PB 快照 + 最近活动。
+
+// 数据里最新年份 (不依赖当前时间，保证可复现)
+const latestYear = (): number =>
+  activities.reduce((max, a) => Math.max(max, Number(a.start_date_local.slice(0, 4))), 0);
+
+const Card = ({ eyebrow, children }: { eyebrow: string; children: React.ReactNode }) => (
+  <section className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
+    <p className="eyebrow">{eyebrow}</p>
+    {children}
+  </section>
+);
 
 const Home = () => {
-  const recent = activitiesByDateDesc().slice(0, 20);
+  const year = latestYear();
 
   return (
-    <main className="w-full px-6 py-12 sm:px-10 lg:px-16">
-      <div className="flex items-baseline justify-between">
-        <p className="eyebrow">Running Page</p>
-        <Link
-          to="/analysis"
-          className="font-mono text-xs text-[var(--color-ink-2)] hover:text-[var(--color-accent)]"
+    <TooltipProvider delayDuration={100}>
+      <main className="w-full px-6 py-12 sm:px-10 lg:px-16">
+        <div className="flex items-baseline justify-between">
+          <p className="eyebrow">Running Page</p>
+          <Link
+            to="/analysis"
+            className="font-mono text-xs text-[var(--color-ink-2)] hover:text-[var(--color-accent)]"
+          >
+            训练分析 →
+          </Link>
+        </div>
+        <h1
+          className="text-4xl font-extrabold tracking-tight"
+          style={{ fontFamily: 'var(--font-display)' }}
         >
-          训练分析 →
-        </Link>
-      </div>
-      <h1
-        className="text-4xl font-extrabold tracking-tight"
-        style={{ fontFamily: 'var(--font-display)' }}
-      >
-        最近跑步
-      </h1>
+          跑步档案
+        </h1>
 
-      <ul className="mt-8 flex flex-col gap-2">
-        {recent.map((a) => (
-          <li key={a.run_id}>
-            <Link
-              to={`/runs/${a.run_id}`}
-              className="flex items-center gap-4 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] px-5 py-4 transition-colors hover:border-[var(--color-accent)]"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{a.name}</div>
-                <div className="tnum font-mono text-xs text-[var(--color-ink-3)]">
-                  {formatDateDots(a.start_date_local)}
-                </div>
-              </div>
-              <div className="tnum text-right font-mono text-sm">
-                <div className="font-bold">{toKm(a.distance)} km</div>
-                <div className="text-[var(--color-ink-3)]">{paceFromSpeed(a.average_speed)}/km</div>
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </main>
+        <div className="mt-8">
+          <StatsBar activities={activities} year={year} />
+        </div>
+
+        <Card eyebrow={`活跃日历 · ${year}`}>
+          <HeatmapCalendar activities={activities} year={year} />
+        </Card>
+
+        <Card eyebrow="最佳成绩 · Personal Records">
+          <PrSnapshot activities={activities} />
+        </Card>
+
+        <Card eyebrow="最近跑步">
+          <RecentRuns />
+        </Card>
+      </main>
+    </TooltipProvider>
   );
 };
 
