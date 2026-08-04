@@ -22,7 +22,8 @@ dependencies = [
   "cloudscraper",
   "tcxreader",
   "rich",
-  "lxml",
+  "lxml>=6.0.1", # 6.0.0 无 cp314 Linux wheel,3.14 会源码编译失败;6.0.1+ 才有
+
   "eviltransform",
   "stravaweblib",
   "tenacity",
