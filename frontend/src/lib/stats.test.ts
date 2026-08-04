@@ -61,3 +61,40 @@ describe('overallStats', () => {
     expect(s).toEqual({ totalDistanceKm: 0, totalRuns: 0, thisYearKm: 0, longestRunKm: 0 });
   });
 });
+
+import { heatmapByDay, heatLevel } from './stats';
+
+describe('heatmapByDay', () => {
+  it('同日多次跑步合并 count 与距离', () => {
+    const acts = [
+      mk({ type: 'Run', distance: 5000, start_date_local: '2024-03-20 08:00:00' }),
+      mk({ type: 'Run', distance: 3000, start_date_local: '2024-03-20 18:00:00' }),
+    ];
+    const m = heatmapByDay(acts, 2024);
+    const cell = m.get('2024-03-20');
+    expect(cell?.count).toBe(2);
+    expect(cell?.distanceKm).toBe(8);
+  });
+
+  it('只含指定年 + 仅 Run', () => {
+    const acts = [
+      mk({ type: 'Run', distance: 5000, start_date_local: '2024-03-20 08:00:00' }),
+      mk({ type: 'Run', distance: 5000, start_date_local: '2025-03-20 08:00:00' }),
+      mk({ type: 'cycling', distance: 5000, start_date_local: '2024-03-21 08:00:00' }),
+    ];
+    const m = heatmapByDay(acts, 2024);
+    expect(m.size).toBe(1);
+    expect(m.has('2024-03-20')).toBe(true);
+  });
+});
+
+describe('heatLevel', () => {
+  it('0km → 0', () => expect(heatLevel(0)).toBe(0));
+  it('分档边界', () => {
+    expect(heatLevel(2)).toBe(1);
+    expect(heatLevel(5)).toBe(2);
+    expect(heatLevel(8)).toBe(3);
+    expect(heatLevel(12)).toBe(4);
+    expect(heatLevel(20)).toBe(5);
+  });
+});
