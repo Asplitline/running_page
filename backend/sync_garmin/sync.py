@@ -13,7 +13,7 @@ import os
 import sys
 
 from backend.config import GPX_FOLDER, JSON_FILE, SQL_FILE
-from backend.sync_garmin.auth import GarminClient
+from backend.sync_garmin.auth import GarminAuthError, GarminClient
 from backend.sync_garmin.downloader import download_new_activities
 from backend.utils import make_activities_file
 
@@ -58,7 +58,11 @@ def main():
     if not options.secret_string:
         print("Missing secret_string argument")
         sys.exit(1)
-    run_sync(options.secret_string, options.is_cn, options.only_run)
+    try:
+        run_sync(options.secret_string, options.is_cn, options.only_run)
+    except GarminAuthError as e:
+        print(f"\n{e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

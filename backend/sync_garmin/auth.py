@@ -8,11 +8,25 @@ CN 区由 is_cn 开关控制,库内部切 garmin.cn,不再需要旧代码那种 
 """
 
 from garminconnect import Garmin
+from garminconnect.exceptions import GarminConnectAuthenticationError
 
 # file_type -> 库下载枚举
 DOWNLOAD_FORMATS = {
     "gpx": Garmin.ActivityDownloadFormat.GPX,
 }
+
+# 认证失败时的可读指引,替代满屏底层 traceback
+_AUTH_HINT = (
+    "佳明认证失败(401)。可能原因:\n"
+    "  1. token 已失效 —— 重新生成: uv run python -m backend.sync_garmin.make_secret <邮箱> <密码> --is-cn,"
+    "并更新 GitHub Secret GARMIN_SECRET_STRING_CN\n"
+    "  2. 依赖版本漂移 —— CI 应走 uv sync --frozen(锁定 curl_cffi 等),避免新版 TLS 指纹触发 CN 风控\n"
+    "  3. 异地 IP 被风控 —— GitHub runner 境外共享 IP 常被佳明 CN 拦截"
+)
+
+
+class GarminAuthError(RuntimeError):
+    """认证失败的可读封装,携带排查指引。"""
 
 
 class GarminClient:
@@ -45,9 +59,16 @@ class GarminClient:
         return cls(client, is_only_running)
 
     def list_activities(self, start, limit):
-        """拉一页活动摘要(原始 dict 列表)。"""
+        """拉一页活动摘要(原始 dict 列表)。
+
+        这是同步流程第一次真实 API 调用,401 优先在此暴露。捕获后转成
+        带排查指引的 GarminAuthError,替代满屏底层 traceback。
+        """
         activity_type = "running" if self.is_only_running else None
-        return self._client.get_activities(start, limit, activity_type)
+        try:
+            return self._client.get_activities(start, limit, activity_type)
+        except GarminConnectAuthenticationError as e:
+            raise GarminAuthError(_AUTH_HINT) from e
 
     def get_activity_summary(self, activity_id):
         """拉单条活动详情(用于 summary 注入与标题)。"""

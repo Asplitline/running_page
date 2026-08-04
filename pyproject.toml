@@ -44,6 +44,10 @@ requires-python = ">=3.12"
 readme = "README.md"
 license = { text = "MIT" }
 
+[dependency-groups]
+# CI 用的 lint/format 工具,纳入 uv.lock 统一锁版本,避免现装最新版行为漂移
+dev = ["black", "ruff"]
+
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"

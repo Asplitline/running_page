@@ -15,31 +15,28 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python ${{ matrix.python-version }}
-        id: setup_python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: 'requirements-dev.txt'
+          enable-cache: true
 
       - name: Install dependencies
         run: |
-          pip install -r requirements-dev.txt
+          # 走 uv.lock,依赖版本与同步流程一致,避免现装最新版行为漂移
+          uv sync --frozen
 
       - name: Backend import smoke test
         run: |
           # 确认 backend 佳明同步链路可导入(独立闭环)
-          python -c "from backend.sync_garmin import sync, make_secret"
-          python -m backend.sync_garmin.sync --help
+          uv run python -c "from backend.sync_garmin import sync, make_secret"
+          uv run python -m backend.sync_garmin.sync --help
 
       - name: Check formatting (black)
-        run: black . --diff --color && black . --check
+        run: uv run black . --diff --color && uv run black . --check
 
       - name: Lint with Ruff
-        run: |
-          pip install ruff
-          ruff check .
+        run: uv run ruff check .
 
   node_lint_and_test:
     runs-on: ubuntu-latest
