@@ -1,7 +1,11 @@
 import type { Activity } from '@/data/types';
 import { toKm } from './format';
+import { durationToSeconds } from './analytics';
 
 // 派生统计 (纯函数)。距离/次数口径：仅 type === 'Run'。
+
+// 年度目标里程 (km)。纯前端约定，无后端配置。
+export const ANNUAL_GOAL_KM = 1000;
 
 const isRun = (a: Activity): boolean => a.type === 'Run';
 const yearOf = (a: Activity): number => Number(a.start_date_local.slice(0, 4));
@@ -61,4 +65,66 @@ export const heatLevel = (distanceKm: number): 0 | 1 | 2 | 3 | 4 | 5 => {
   if (distanceKm < 10) return 3;
   if (distanceKm < 15) return 4;
   return 5;
+};
+
+// 逐年聚合 (英雄区右半三年对比用)。仅 Run。年份升序。
+export interface YearStat {
+  year: number;
+  km: number; // 该年里程
+  runs: number; // 该年次数
+  avgPaceSec: number; // 平均配速 秒/km = 总时长 / 总距离 (非各次算术平均，避免距离权重失真)
+  avgHr: number | null; // 平均心率 (各次均值的算术平均，无心率数据则 null)
+}
+
+export const statsByYear = (activities: Activity[]): YearStat[] => {
+  // year → 累加器
+  const acc = new Map<number, { meters: number; sec: number; runs: number; hrSum: number; hrN: number }>();
+  for (const a of activities) {
+    if (!isRun(a)) continue;
+    const y = yearOf(a);
+    const cur = acc.get(y) ?? { meters: 0, sec: 0, runs: 0, hrSum: 0, hrN: 0 };
+    cur.meters += a.distance;
+    cur.sec += durationToSeconds(a.moving_time);
+    cur.runs += 1;
+    if (a.average_heartrate != null) {
+      cur.hrSum += a.average_heartrate;
+      cur.hrN += 1;
+    }
+    acc.set(y, cur);
+  }
+  return [...acc.entries()]
+    .map(([year, v]) => {
+      const km = v.meters / 1000;
+      return {
+        year,
+        km: toKm(v.meters),
+        runs: v.runs,
+        avgPaceSec: km > 0 ? Math.round(v.sec / km) : 0,
+        avgHr: v.hrN > 0 ? Math.round(v.hrSum / v.hrN) : null,
+      };
+    })
+    .sort((a, b) => a.year - b.year);
+};
+
+// 最长连续打卡。streak 为后端预计算的"连续活动序号"，取全局最大即最长连续。
+export const longestStreak = (activities: Activity[]): number =>
+  activities.reduce((max, a) => Math.max(max, a.streak ?? 0), 0);
+
+// 最新月里程 (英雄区"本月"用)。月份从数据取，不依赖 Date.now()，保证可复现。
+export interface MonthKm {
+  month: string; // YYYY-MM，无数据则空串
+  km: number;
+}
+
+export const latestMonthKm = (activities: Activity[]): MonthKm => {
+  const runs = activities.filter(isRun);
+  if (runs.length === 0) return { month: '', km: 0 };
+  const latest = runs.reduce((m, a) => {
+    const mo = a.start_date_local.slice(0, 7); // YYYY-MM
+    return mo > m ? mo : m;
+  }, '');
+  const meters = runs
+    .filter((a) => a.start_date_local.slice(0, 7) === latest)
+    .reduce((s, a) => s + a.distance, 0);
+  return { month: latest, km: toKm(meters) };
 };

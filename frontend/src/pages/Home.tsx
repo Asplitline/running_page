@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { activities } from '@/data/activities';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import StatsBar from '@/components/dashboard/StatsBar';
+import HeroBanner from '@/components/dashboard/HeroBanner';
 import HeatmapCalendar from '@/components/dashboard/HeatmapCalendar';
 import PrSnapshot from '@/components/dashboard/PrSnapshot';
 import RecentRuns from '@/components/dashboard/RecentRuns';
@@ -41,9 +41,7 @@ const Home = () => {
           跑步档案
         </h1>
 
-        <div className="mt-8">
-          <StatsBar activities={activities} year={year} />
-        </div>
+        <HeroBanner activities={activities} year={year} />
 
         <Card eyebrow={`活跃日历 · ${year}`}>
           <HeatmapCalendar activities={activities} year={year} />

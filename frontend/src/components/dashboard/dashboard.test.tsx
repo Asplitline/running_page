@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/Tooltip';
 import StatsBar from './StatsBar';
 import PrSnapshot from './PrSnapshot';
 import HeatmapCalendar from './HeatmapCalendar';
+import HeroBanner from './HeroBanner';
 
 const mk = (over: Partial<Activity>): Activity =>
   ({
@@ -56,5 +57,21 @@ describe('dashboard', () => {
     );
     // 366/365 个格子渲染成功即 container 有内容
     expect(document.querySelector('.grid-flow-col')).not.toBeNull();
+  });
+
+  it('HeroBanner 渲染总里程与逐年对比', () => {
+    const acts = [
+      mk({ distance: 10000, start_date_local: '2024-06-01 08:00:00' }),
+      mk({ distance: 15000, start_date_local: '2025-06-01 08:00:00' }),
+    ];
+    render(
+      <MemoryRouter>
+        <HeroBanner activities={acts} year={2025} />
+      </MemoryRouter>
+    );
+    // 总里程 25km + 逐年对比标题
+    expect(screen.getByText('25')).toBeDefined();
+    expect(screen.getByText('逐年对比')).toBeDefined();
+    expect(screen.getByText('2024')).toBeDefined();
   });
 });

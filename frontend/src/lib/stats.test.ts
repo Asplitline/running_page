@@ -98,3 +98,67 @@ describe('heatLevel', () => {
     expect(heatLevel(20)).toBe(5);
   });
 });
+
+import { statsByYear, longestStreak, latestMonthKm } from './stats';
+
+describe('statsByYear', () => {
+  it('仅计 Run，按年升序分组', () => {
+    const acts = [
+      mk({ type: 'Run', distance: 5000, start_date_local: '2025-06-01 08:00:00' }),
+      mk({ type: 'Run', distance: 8000, start_date_local: '2024-06-01 08:00:00' }),
+      mk({ type: 'cycling', distance: 30000, start_date_local: '2024-06-02 08:00:00' }),
+    ];
+    const ys = statsByYear(acts);
+    expect(ys.map((y) => y.year)).toEqual([2024, 2025]);
+    expect(ys[0]).toMatchObject({ year: 2024, km: 8, runs: 1 });
+    expect(ys[1]).toMatchObject({ year: 2025, km: 5, runs: 1 });
+  });
+
+  it('平均配速 = 总时长/总距离 (加权，非各次算术平均)', () => {
+    // A: 2km / 10:00 = 300 s/km; B: 8km / 32:00 = 240 s/km
+    // 算术平均 = 270; 加权 = (600+1920)/(2+8) = 2520/10 = 252 s/km
+    const acts = [
+      mk({ distance: 2000, moving_time: '0:10:00', start_date_local: '2025-01-01 08:00:00' }),
+      mk({ distance: 8000, moving_time: '0:32:00', start_date_local: '2025-01-02 08:00:00' }),
+    ];
+    expect(statsByYear(acts)[0].avgPaceSec).toBe(252);
+  });
+
+  it('平均心率对 null 兜底 (跳过无心率的次数)', () => {
+    const acts = [
+      mk({ average_heartrate: 150, start_date_local: '2025-01-01 08:00:00' }),
+      mk({ average_heartrate: null, start_date_local: '2025-01-02 08:00:00' }),
+    ];
+    expect(statsByYear(acts)[0].avgHr).toBe(150);
+    const noHr = [mk({ average_heartrate: null, start_date_local: '2025-01-01 08:00:00' })];
+    expect(statsByYear(noHr)[0].avgHr).toBeNull();
+  });
+
+  it('空数组 → 空列表', () => {
+    expect(statsByYear([])).toEqual([]);
+  });
+});
+
+describe('longestStreak', () => {
+  it('取全局最大 streak', () => {
+    expect(longestStreak([mk({ streak: 1 }), mk({ streak: 4 }), mk({ streak: 2 })])).toBe(4);
+  });
+  it('无 streak 字段 → 0', () => {
+    expect(longestStreak([mk({}), mk({})])).toBe(0);
+    expect(longestStreak([])).toBe(0);
+  });
+});
+
+describe('latestMonthKm', () => {
+  it('取数据最新月的里程 (仅 Run)', () => {
+    const acts = [
+      mk({ distance: 5000, start_date_local: '2026-07-01 08:00:00' }),
+      mk({ distance: 3000, start_date_local: '2026-08-01 08:00:00' }),
+      mk({ distance: 4000, start_date_local: '2026-08-15 08:00:00' }),
+    ];
+    expect(latestMonthKm(acts)).toEqual({ month: '2026-08', km: 7 });
+  });
+  it('空数组 → 空月 0km', () => {
+    expect(latestMonthKm([])).toEqual({ month: '', km: 0 });
+  });
+});
