@@ -110,6 +110,10 @@ export const statsByYear = (activities: Activity[]): YearStat[] => {
 export const longestStreak = (activities: Activity[]): number =>
   activities.reduce((max, a) => Math.max(max, a.streak ?? 0), 0);
 
+// 某年活跃天数 = 有跑步记录的不同日期数 (仅 Run，与热力日历同口径)。
+export const activeDays = (activities: Activity[], year: number): number =>
+  heatmapByDay(activities, year).size;
+
 // 最新月里程 (英雄区"本月"用)。月份从数据取，不依赖 Date.now()，保证可复现。
 export interface MonthKm {
   month: string; // YYYY-MM，无数据则空串

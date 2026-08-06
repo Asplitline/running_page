@@ -149,6 +149,22 @@ describe('longestStreak', () => {
   });
 });
 
+import { activeDays } from './stats';
+
+describe('activeDays', () => {
+  it('同日多次跑步只算 1 天，仅计指定年的 Run', () => {
+    const acts = [
+      mk({ type: 'Run', start_date_local: '2024-03-20 08:00:00' }),
+      mk({ type: 'Run', start_date_local: '2024-03-20 18:00:00' }),
+      mk({ type: 'Run', start_date_local: '2024-03-21 08:00:00' }),
+      mk({ type: 'Run', start_date_local: '2025-03-22 08:00:00' }),
+      mk({ type: 'cycling', start_date_local: '2024-03-25 08:00:00' }),
+    ];
+    expect(activeDays(acts, 2024)).toBe(2);
+  });
+  it('空数组 → 0', () => expect(activeDays([], 2024)).toBe(0));
+});
+
 describe('latestMonthKm', () => {
   it('取数据最新月的里程 (仅 Run)', () => {
     const acts = [
