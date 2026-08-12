@@ -77,7 +77,40 @@ jobs:
           GARMIN_SECRET_STRING_CN: ${{ secrets.GARMIN_SECRET_STRING_CN }}
         run: |
           uv run python - <<'PY'
-          import json, os
+          import base64
+          import json
+          import os
+          from datetime import datetime, timedelta, timezone
+
+          CN_TZ = timezone(timedelta(hours=8))  # 北京时间
+
+          def decode_exp(tok):
+              # 解 JWT payload 段的 exp(过期时间戳),不做签名校验
+              payload = tok.split(".")[1]
+              payload += "=" * (-len(payload) % 4)  # 补 base64 padding
+              return json.loads(base64.urlsafe_b64decode(payload)).get("exp")
+
+          def report_token_exp(label, tok):
+              if not tok:
+                  print(f"[token] {label}: 缺失")
+                  return
+              try:
+                  exp = decode_exp(tok)
+              except Exception:
+                  print(f"[token] {label}: 非 JWT 格式,无法解出过期时间")
+                  return
+              if exp is None:
+                  print(f"[token] {label}: 无 exp 字段")
+                  return
+              now = datetime.now(tz=CN_TZ)
+              exp_dt = datetime.fromtimestamp(exp, tz=CN_TZ)
+              left = exp_dt - now
+              if left.total_seconds() <= 0:
+                  print(f"[token] {label}: 已过期(北京时间 {exp_dt:%Y-%m-%d %H:%M})")
+              else:
+                  days = left.days
+                  hours = left.seconds // 3600
+                  print(f"[token] {label}: 北京时间 {exp_dt:%Y-%m-%d %H:%M} 过期(还剩 {days} 天 {hours} 小时)")
 
           s = os.environ.get("GARMIN_SECRET_STRING_CN")
           if s is None:
@@ -109,6 +142,8 @@ jobs:
                   missing = want - set(data.keys())
                   if missing:
                       print(f"[secret] 缺少 make_secret 应有的 key: {sorted(missing)}")
+                  report_token_exp("access(di_token)", data.get("di_token"))
+                  report_token_exp("refresh(di_refresh_token)", data.get("di_refresh_token"))
           PY
 
       # Garmin 中国区同步。生成 secret: python -m backend.sync_garmin.make_secret <email> <password> --is-cn
