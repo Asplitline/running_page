@@ -64,6 +64,16 @@ class Track:
         self.type = "Run"
         self.subtype = None  # for fit file
         self.device = ""
+        self.calories = None
+        self.elevation_loss = None
+        self.min_elevation = None
+        self.max_elevation = None
+        self.avg_power = None
+        self.max_power = None
+        self.aerobic_te = None
+        self.anaerobic_te = None
+        self.avg_stride_length = None
+        self.hr_zones = None
 
     def load_gpx(self, file_name):
         """
@@ -174,6 +184,19 @@ class Track:
         self.split_heart_rates = (
             activity.split_heart_rates if hasattr(activity, "split_heart_rates") else []
         )
+        for field in (
+            "calories",
+            "elevation_loss",
+            "min_elevation",
+            "max_elevation",
+            "avg_power",
+            "max_power",
+            "aerobic_te",
+            "anaerobic_te",
+            "avg_stride_length",
+            "hr_zones",
+        ):
+            setattr(self, field, getattr(activity, field, None))
 
     def bbox(self):
         """Compute the smallest rectangle that contains the entire track (border box)."""
@@ -419,6 +442,25 @@ class Track:
             if gpx_extensions.get("elapsed_time") is None
             else datetime.timedelta(seconds=float(gpx_extensions.get("elapsed_time")))
         )
+
+        # summaryDTO 补充字段(佳明专属,P1)。全部 nullable,读不到就是 None。
+        for field in (
+            "calories",
+            "elevation_loss",
+            "min_elevation",
+            "max_elevation",
+            "avg_power",
+            "max_power",
+            "aerobic_te",
+            "anaerobic_te",
+            "avg_stride_length",
+        ):
+            raw = gpx_extensions.get(field)
+            setattr(self, field, None if raw in (None, "") else float(raw))
+
+        # hr_zones 是 JSON 字符串(心率区间时长分布),非数值,直接保留原文本。
+        hr_zones_raw = gpx_extensions.get("hr_zones")
+        self.hr_zones = hr_zones_raw if hr_zones_raw not in (None, "") else None
 
     def _load_fit_data(self, fit: dict):
         _polylines = []
@@ -702,6 +744,16 @@ class Track:
             "elevation_gain": (int(self.elevation_gain) if self.elevation_gain else 0),
             "map": run_map(self.polyline_str),
             "start_latlng": self.start_latlng,
+            "calories": self.calories,
+            "elevation_loss": self.elevation_loss,
+            "min_elevation": self.min_elevation,
+            "max_elevation": self.max_elevation,
+            "avg_power": self.avg_power,
+            "max_power": self.max_power,
+            "aerobic_te": self.aerobic_te,
+            "anaerobic_te": self.anaerobic_te,
+            "avg_stride_length": self.avg_stride_length,
+            "hr_zones": self.hr_zones,
         }
         d.update(self.moving_dict)
         # return a nametuple that can use . to get attr

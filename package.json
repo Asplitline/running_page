@@ -34,10 +34,9 @@
   "scripts": {
     "data:clean": "rm -f backend/data.db {GPX,TCX,FIT}_OUT/* src/static/activities.json",
     "data:download:garmin": "python3 -m backend.sync_garmin.sync",
-    "build": "vite build",
-    "develop": "vite dev",
-    "dev": "vite dev",
-    "serve": "vite serve",
+    "build": "pnpm --filter @running-page/frontend run build",
+    "dev": "pnpm --filter @running-page/frontend run dev",
+    "serve": "pnpm --filter @running-page/frontend run preview",
     "lint": "eslint src --ext .ts,.tsx --fix",
     "check": "prettier --check \"src/main.tsx\" \"src/**/*.{css,module.css,json,ts,tsx}\" \"*.{yaml,json,ts}\"",
     "format": "prettier --write \"src/main.tsx\" \"src/**/*.{css,module.css,json,ts,tsx}\" \"*.{yaml,json,ts}\"",

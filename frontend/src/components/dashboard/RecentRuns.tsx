@@ -23,7 +23,9 @@ const RecentRuns = () => {
             </div>
             <div className="tnum text-right font-mono text-sm">
               <div className="font-bold">{toKm(a.distance)} km</div>
-              <div className="text-[var(--color-ink-3)]">{paceFromSpeed(a.average_speed)}/km</div>
+              <div className="text-[var(--color-ink-3)]">
+                {paceFromSpeed(a.average_speed)}/km
+              </div>
             </div>
           </Link>
         </li>

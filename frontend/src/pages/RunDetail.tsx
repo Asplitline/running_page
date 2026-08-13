@@ -1,8 +1,15 @@
 import { useParams, Link } from 'react-router-dom';
 import { getActivityById } from '@/data/activities';
-import { toKm, paceFromSpeed, formatDuration, formatDateDots } from '@/lib/format';
+import {
+  toKm,
+  paceFromSpeed,
+  formatDuration,
+  formatDateDots,
+} from '@/lib/format';
 import { SplitPaceChart } from '@/components/charts/SplitPaceChart';
 import { SplitHrChart } from '@/components/charts/SplitHrChart';
+import { HrZoneBar } from '@/components/charts/HrZoneBar';
+import { ElevationSummary } from '@/components/charts/ElevationSummary';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { estimateHrMax } from '@/design/tokens';
 
@@ -11,9 +18,21 @@ const OWNER_AGE = 29;
 
 // 单次跑步详情页 — S6 首个真实页面。森林绿意 + 真实数据。
 
-const Kpi = ({ label, value, unit, tone }: { label: string; value: string; unit?: string; tone?: 'pace' | 'hr' }) => (
+const Kpi = ({
+  label,
+  value,
+  unit,
+  tone,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  tone?: 'pace' | 'hr';
+}) => (
   <div className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card-2)] p-4">
-    <div className="font-mono text-[11px] tracking-wide text-[var(--color-ink-3)] uppercase">{label}</div>
+    <div className="font-mono text-[11px] uppercase tracking-wide text-[var(--color-ink-3)]">
+      {label}
+    </div>
     <div
       className="tnum mt-2 flex items-baseline gap-0.5 text-3xl font-bold tracking-tight"
       style={{
@@ -26,12 +45,22 @@ const Kpi = ({ label, value, unit, tone }: { label: string; value: string; unit?
       }}
     >
       {value}
-      {unit && <span className="text-xs font-normal text-[var(--color-ink-3)]">{unit}</span>}
+      {unit && (
+        <span className="text-xs font-normal text-[var(--color-ink-3)]">
+          {unit}
+        </span>
+      )}
     </div>
   </div>
 );
 
-const Card = ({ eyebrow, children }: { eyebrow: string; children: React.ReactNode }) => (
+const Card = ({
+  eyebrow,
+  children,
+}: {
+  eyebrow: string;
+  children: React.ReactNode;
+}) => (
   <section className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
     <p className="eyebrow">{eyebrow}</p>
     {children}
@@ -60,12 +89,15 @@ const RunDetail = () => {
   return (
     <TooltipProvider delayDuration={100}>
       <main className="w-full px-6 py-12 sm:px-10 lg:px-16">
-        <Link to="/" className="font-mono text-xs text-[var(--color-ink-2)] hover:text-[var(--color-accent)]">
+        <Link
+          to="/"
+          className="font-mono text-xs text-[var(--color-ink-2)] hover:text-[var(--color-accent)]"
+        >
           ← 返回
         </Link>
 
         <header className="mt-4">
-          <p className="tnum font-mono text-xs tracking-wide text-[var(--color-ink-3)] uppercase">
+          <p className="tnum font-mono text-xs uppercase tracking-wide text-[var(--color-ink-3)]">
             {formatDateDots(activity.start_date_local)}
           </p>
           <h1
@@ -77,12 +109,25 @@ const RunDetail = () => {
         </header>
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Kpi label="Distance" value={String(toKm(activity.distance))} unit="km" />
+          <Kpi
+            label="Distance"
+            value={String(toKm(activity.distance))}
+            unit="km"
+          />
           <Kpi label="Time" value={formatDuration(activity.moving_time)} />
-          <Kpi label="Avg Pace" value={paceFromSpeed(activity.average_speed)} unit="/km" tone="pace" />
+          <Kpi
+            label="Avg Pace"
+            value={paceFromSpeed(activity.average_speed)}
+            unit="/km"
+            tone="pace"
+          />
           <Kpi
             label="Avg HR"
-            value={activity.average_heartrate ? String(Math.round(activity.average_heartrate)) : '--'}
+            value={
+              activity.average_heartrate
+                ? String(Math.round(activity.average_heartrate))
+                : '--'
+            }
             unit="bpm"
             tone="hr"
           />
@@ -99,22 +144,103 @@ const RunDetail = () => {
           />
         </Card>
 
+        {activity.hr_zones && activity.hr_zones.length > 0 && (
+          <Card eyebrow="心率区间分布">
+            <HrZoneBar zones={activity.hr_zones} />
+          </Card>
+        )}
+
         {activity.cadence_trend && (
           <Card eyebrow="步频趋势">
             <div className="flex items-center gap-8">
               <div>
-                <div className="font-mono text-[11px] text-[var(--color-ink-3)]">前半程</div>
-                <div className="tnum text-2xl font-bold">{activity.cadence_trend.first_half}</div>
+                <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
+                  前半程
+                </div>
+                <div className="tnum text-2xl font-bold">
+                  {activity.cadence_trend.first_half}
+                </div>
               </div>
               <div className="text-[var(--color-ink-3)]">→</div>
               <div>
-                <div className="font-mono text-[11px] text-[var(--color-ink-3)]">后半程</div>
-                <div className="tnum text-2xl font-bold">{activity.cadence_trend.second_half}</div>
+                <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
+                  后半程
+                </div>
+                <div className="tnum text-2xl font-bold">
+                  {activity.cadence_trend.second_half}
+                </div>
               </div>
               <div className="ml-auto rounded-[var(--radius-pill)] bg-[var(--color-card-2)] px-3 py-1 font-mono text-xs text-[var(--color-ink-2)]">
                 {activity.cadence_trend.direction}
               </div>
             </div>
+          </Card>
+        )}
+
+        {(activity.calories != null ||
+          activity.aerobic_te != null ||
+          activity.anaerobic_te != null ||
+          activity.avg_power != null) && (
+          <Card eyebrow="训练效果">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {activity.calories != null && (
+                <div>
+                  <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
+                    卡路里
+                  </div>
+                  <div className="tnum text-2xl font-bold">
+                    {Math.round(activity.calories)}
+                  </div>
+                </div>
+              )}
+              {activity.aerobic_te != null && (
+                <div>
+                  <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
+                    有氧 TE
+                  </div>
+                  <div className="tnum text-2xl font-bold">
+                    {activity.aerobic_te}
+                  </div>
+                </div>
+              )}
+              {activity.anaerobic_te != null && (
+                <div>
+                  <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
+                    无氧 TE
+                  </div>
+                  <div className="tnum text-2xl font-bold">
+                    {activity.anaerobic_te}
+                  </div>
+                </div>
+              )}
+              {activity.avg_power != null && (
+                <div>
+                  <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
+                    平均功率
+                  </div>
+                  <div className="tnum text-2xl font-bold">
+                    {Math.round(activity.avg_power)}
+                    <span className="text-xs font-normal text-[var(--color-ink-3)]">
+                      W
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {(activity.min_elevation != null ||
+          activity.max_elevation != null ||
+          activity.elevation_gain != null ||
+          activity.elevation_loss != null) && (
+          <Card eyebrow="海拔">
+            <ElevationSummary
+              minElevation={activity.min_elevation ?? null}
+              maxElevation={activity.max_elevation ?? null}
+              elevationGain={activity.elevation_gain}
+              elevationLoss={activity.elevation_loss ?? null}
+            />
           </Card>
         )}
       </main>

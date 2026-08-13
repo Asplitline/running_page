@@ -13,7 +13,8 @@ interface Props {
 }
 
 // 各档距离序 (越大越靠后)，用于选主角
-const distanceRank = (key: string): number => PB_DISTANCES.findIndex((d) => d.key === key);
+const distanceRank = (key: string): number =>
+  PB_DISTANCES.findIndex((d) => d.key === key);
 
 // PB 配速 (秒/km)
 const pbPace = (pb: PersonalRecord): string =>
@@ -22,11 +23,15 @@ const pbPace = (pb: PersonalRecord): string =>
 const PrSnapshot = ({ activities }: Props) => {
   const pbs = personalRecords(activities);
   if (pbs.length === 0) {
-    return <p className="text-sm text-[var(--color-ink-3)]">暂无符合距离档的记录</p>;
+    return (
+      <p className="text-sm text-[var(--color-ink-3)]">暂无符合距离档的记录</p>
+    );
   }
 
   // 最长距离档为主角，其余按距离降序收小
-  const hero = pbs.reduce((a, b) => (distanceRank(b.key) > distanceRank(a.key) ? b : a));
+  const hero = pbs.reduce((a, b) =>
+    distanceRank(b.key) > distanceRank(a.key) ? b : a
+  );
   const rest = pbs
     .filter((p) => p.key !== hero.key)
     .sort((a, b) => distanceRank(b.key) - distanceRank(a.key));
@@ -39,7 +44,7 @@ const PrSnapshot = ({ activities }: Props) => {
         className="group rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 transition-colors hover:border-[var(--color-accent)]"
       >
         <div className="flex items-baseline justify-between">
-          <span className="font-mono text-[11px] tracking-widest text-[var(--color-ink-3)] uppercase">
+          <span className="font-mono text-[11px] uppercase tracking-widest text-[var(--color-ink-3)]">
             {hero.label} 最佳
           </span>
           <span className="tnum font-mono text-[11px] text-[var(--color-ink-3)]">
@@ -47,7 +52,7 @@ const PrSnapshot = ({ activities }: Props) => {
           </span>
         </div>
         <div
-          className="tnum mt-2 text-[clamp(40px,6vw,60px)] leading-none font-extrabold tracking-tight text-[var(--color-ink)] transition-colors group-hover:text-[var(--color-accent)]"
+          className="tnum mt-2 text-[clamp(40px,6vw,60px)] font-extrabold leading-none tracking-tight text-[var(--color-ink)] transition-colors group-hover:text-[var(--color-accent)]"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {formatClock(hero.seconds)}
@@ -55,7 +60,11 @@ const PrSnapshot = ({ activities }: Props) => {
         <div className="mt-2 flex gap-4 font-mono text-[11px] text-[var(--color-ink-3)]">
           <span className="tnum">{toKm(hero.activity.distance)} km</span>
           <span className="tnum">
-            配速 <b className="font-semibold text-[var(--color-ink-2)]">{pbPace(hero)}</b>/km
+            配速{' '}
+            <b className="font-semibold text-[var(--color-ink-2)]">
+              {pbPace(hero)}
+            </b>
+            /km
           </span>
         </div>
       </Link>
@@ -69,7 +78,7 @@ const PrSnapshot = ({ activities }: Props) => {
               to={`/runs/${pb.activity.run_id}`}
               className="flex flex-col justify-center rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card-2)] p-3 transition-colors hover:border-[var(--color-accent)]"
             >
-              <div className="font-mono text-[10px] tracking-wide text-[var(--color-ink-3)] uppercase">
+              <div className="font-mono text-[10px] uppercase tracking-wide text-[var(--color-ink-3)]">
                 {pb.label}
               </div>
               <div className="tnum mt-1.5 text-lg font-bold tracking-tight">

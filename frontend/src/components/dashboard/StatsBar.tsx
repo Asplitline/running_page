@@ -9,9 +9,17 @@ interface Props {
   year: number;
 }
 
-const Stat = ({ label, value, unit }: { label: string; value: string; unit?: string }) => (
+const Stat = ({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}) => (
   <div className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card-2)] p-4">
-    <div className="font-mono text-[11px] tracking-wide text-[var(--color-ink-3)] uppercase">
+    <div className="font-mono text-[11px] uppercase tracking-wide text-[var(--color-ink-3)]">
       {label}
     </div>
     <div
@@ -19,7 +27,11 @@ const Stat = ({ label, value, unit }: { label: string; value: string; unit?: str
       style={{ fontFamily: 'var(--font-display)' }}
     >
       {value}
-      {unit && <span className="text-xs font-normal text-[var(--color-ink-3)]">{unit}</span>}
+      {unit && (
+        <span className="text-xs font-normal text-[var(--color-ink-3)]">
+          {unit}
+        </span>
+      )}
     </div>
   </div>
 );

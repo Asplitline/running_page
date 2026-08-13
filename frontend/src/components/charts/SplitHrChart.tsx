@@ -15,7 +15,8 @@ const H = 120;
 const PAD = 8;
 const NEUTRAL = 'var(--color-ink-3)';
 
-const zoneColor = (hr: number, hrMax: number): string => hrZoneOf(hr, hrMax)?.color ?? NEUTRAL;
+const zoneColor = (hr: number, hrMax: number): string =>
+  hrZoneOf(hr, hrMax)?.color ?? NEUTRAL;
 const zoneLabel = (hr: number, hrMax: number): string => {
   const z = hrZoneOf(hr, hrMax);
   return z ? `Z${z.zone} ${z.label}` : '';
@@ -38,7 +39,11 @@ export const SplitHrChart = ({ splits, hrMax }: Props) => {
   });
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full"
+      preserveAspectRatio="none"
+    >
       <defs>
         {pts.slice(0, -1).map((p, i) => {
           const next = pts[i + 1];

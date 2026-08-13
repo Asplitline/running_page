@@ -63,7 +63,9 @@ const HeatmapCalendar = ({ activities, year }: Props) => {
               content={
                 <span className="tnum font-mono">
                   {date}
-                  {cell ? ` · ${cell.distanceKm}km · ${cell.count} 次` : ' · 未跑'}
+                  {cell
+                    ? ` · ${cell.distanceKm}km · ${cell.count} 次`
+                    : ' · 未跑'}
                 </span>
               }
             >

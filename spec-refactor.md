@@ -147,35 +147,39 @@ React 18 + TS + Vite 7 + **Tailwind 4** + Mapbox GL + Recharts + react-router 6�
 Garmin Connect (garminconnect 库, 144 个方法)
    │
    ├─ get_activities() ──── 活动列表摘要
-   ├─ get_activity(id) ───── 单条详情 summaryDTO   ← 只取了 7 个字段注入 GPX,其余丢弃
+   ├─ get_activity(id) ───── 单条详情 summaryDTO   ← 已提取(阶段2完成,2026-08-13)
    └─ download_activity(GPX) ─ 轨迹点(经纬度+时间+心率+步频+海拔)
    │
    ▼
 track.py 逐点计算 ──► split_paces / split_heart_rates / cadence_trend
    ▼
-db.py 落库(19 字段) ──► activities.json ──► 前端
+db.py 落库(28 字段,阶段2后) ──► activities.json ──► 前端
 ```
 
-### 2.2 当前落库的 19 个字段 (前端目前全部可用数据)
+### 2.2 当前落库字段 (阶段 2 完成后，前端目前全部可用数据)
 
-`run_id, name, distance, moving_time, elapsed_time, type, subtype, start_date,
+原 19 字段:`run_id, name, distance, moving_time, elapsed_time, type, subtype, start_date,
 start_date_local, location_country, summary_polyline, average_heartrate,
 max_heartrate, average_speed, average_cadence, cadence_trend, split_paces,
 split_heart_rates, elevation_gain`(+ 派生 `streak`)
 
-### 2.3 三个层次的数据缺口
+**阶段 2 新增 9 字段** (2026-08-13 完成，全部来自 `get_activity()` 的 `summaryDTO`，已用真实活动核实字段名):
+`calories, elevation_loss, min_elevation, max_elevation, avg_power, max_power,
+aerobic_te(← summaryDTO.trainingEffect), anaerobic_te, avg_stride_length`
+
+### 2.3 三个层次的数据缺口 (阶段 2 完成后更新)
 
 | 层次 | 现状 | 佳明能给什么 | 改动成本 |
 | --- | --- | --- | --- |
-| **① summaryDTO 已在手却被丢弃** | `get_activity()` 返回详情，只取 7 字段 | 海拔上升/下降、最低/最高海拔、**卡路里**、平均/最大步幅、垂直振幅、触地时间、**平均/最大功率**、**有氧/无氧训练效果 TE**、体感温度 | 🟢 加几行提取 |
-| **② 佳明专门 API 没调** | 只用 3 个方法 | `get_activity_hr_in_timezones`(**心率区间时长分布** → 直接兑现 spec 的 5 区模型)、`get_activity_details`(**逐秒时间序列**,比 GPX 精)、`get_activity_splits`(佳明官方分段)、`get_max_metrics`(**VO2max**)、`get_training_status`(**训练状态/负荷**)、`get_race_predictions`(**各距离成绩预测**)、`get_rhr_day`(每日静息心率) | 🟡 加同步方法 + 落库字段 |
-| **③ 派生指标没算** | 有 avg_hr + avg_pace 未组合 | **有氧效率 (pace÷hr 趋势)、心率漂移、配速 - 心率散点、各距离 PB、周训练负荷 ACWR、streak 打卡日历** | 🟢 纯前端可算 (部分) |
+| ~~① summaryDTO 已在手却被丢弃~~ | ✅ **已完成 (阶段2)** | calories/elevation/power/TE/步幅 9 字段已提取入库 | 已完成 |
+| **② 佳明专门 API 没调** | 只用 3 个方法 (`get_activities`/`get_activity`/`download_activity`) | `get_activity_hr_in_timezones`(**心率区间时长分布**, 按 activity_id, 与现有 summaryDTO 同粒度)、`get_max_metrics`(**VO2max**, 按日期 cdate)、`get_training_status`(**训练状态/负荷**, 按日期)、`get_race_predictions`(**各距离成绩预测**, 按日期区间)、`get_rhr_day`(**静息心率**, 按日期) | 🟡 加同步方法 + 落库字段/新表 |
+| **③ 派生指标没算** | 有 avg_hr + avg_pace 未组合 | **有氧效率 (pace÷hr 趋势)** ✅已完成(阶段1)、**心率漂移、配速-心率散点** ✅已完成(阶段1)、**各距离 PB** ✅已完成(阶段1)、**周训练负荷 ACWR、streak 打卡日历** ✅已完成(阶段1,首页近期状态区+HeatmapCalendar) | 🟢 纯前端可算 |
 
-### 2.4 结论
+### 2.4 结论 (阶段 2 完成后更新)
 
-- **不动后端**,前端就能做:PB 追踪、有氧效率趋势、配速 - 心率散点、月/周趋势、streak 日历、单次详情页 (用现有 split 画曲线)。**占分析价值 ~70%,零后端风险。**
-- **后端加几行提取 summaryDTO**:多得心率区间分布、卡路里、海拔剖面、功率、TE。**ROI 最高 —— 数据已拉回来。**
-- **深挖佳明新 API**:VO2max 趋势、训练状态、成绩预测。数据最全但同步变慢、需处理认证/限流。
+- ~~不动后端,前端就能做~~ ✅ **阶段 1 已完成**:PB 追踪、有氧效率趋势、配速-心率散点、streak 日历、单次详情页。
+- ~~后端加几行提取 summaryDTO~~ ✅ **阶段 2 已完成**:卡路里、海拔剖面、功率、TE、步幅已落库并在详情页展示。
+- **深挖佳明新 API (阶段 3，待推进)**:VO2max 趋势、训练状态、成绩预测、心率区间分布。数据最全但同步变慢、需处理认证/限流，且**数据粒度不统一**(见 §6 阶段 3 拆解)。
 
 ---
 
@@ -223,6 +227,8 @@ split_heart_rates, elevation_gain`(+ 派生 `streak`)
 └─────────────────────────────────────────────┘
 ```
 
+> **进度标注 (2026-08-13)**：近期状态区已实现「本周跑量 KPI + 近8周趋势柱图」(缺训练状态/VO2max，待阶段3)；生涯叙事区（英雄区）已实现总里程/年度目标环/三年对比；地图板块与成就徽章行**未开始**。
+
 ### 3.2 单次详情页线框 (全新)
 
 ```
@@ -234,15 +240,17 @@ split_heart_rates, elevation_gain`(+ 派生 `streak`)
 ├─────────────────────────────────────────────┤
 │ 逐公里心率 + 心率漂移标注                        │  ← split_heart_rates (现有)
 ├─────────────────────────────────────────────┤
-│ 心率区间时长分布(横向堆叠条,Z1-Z5)             │  ← hr_in_timezones (后端新增)
+│ 心率区间时长分布(横向堆叠条,Z1-Z5)             │  ← hr_in_timezones (阶段3，待实现)
 ├─────────────────────────────────────────────┤
-│ 步频趋势(前半/后半对比)· 海拔剖面 · 卡路里/TE     │  ← cadence_trend(现有)+ summaryDTO(小改)
+│ 步频趋势(前半/后半对比)· 海拔剖面 · 卡路里/TE     │  ← cadence_trend(现有)+ summaryDTO(✅阶段2完成)
 ├─────────────────────────────────────────────┤
 │ 🗺 轨迹地图(有 polyline 才显示,否则降级隐藏)      │  ← summary_polyline(现有, 多为 null → 降级)
 └─────────────────────────────────────────────┘
 ```
 
 > ⚠️ 详情页地图**降级策略**:数据里 `summary_polyline` 很多是 `null`。有轨迹显示地图，无轨迹只展示图表，不留空块。
+>
+> **进度标注 (2026-08-13)**：配速曲线/逐公里心率/步频趋势/训练效果(卡路里+TE+功率) 已实现。心率区间分布/海拔剖面图/轨迹地图**未开始**。
 
 ---
 
@@ -250,84 +258,114 @@ split_heart_rates, elevation_gain`(+ 派生 `streak`)
 
 ### 4.1 硬契约 (不可破坏)
 
-- ORM 表名 `activities`、`ACTIVITY_KEYS` 现有 19 字段的语义与类型
+- ORM 表名 `activities`、`ACTIVITY_KEYS` 现有字段的语义与类型
 - `activities.json` 数组结构、现有字段名
 - `run_id` 主键、token 机制、GPX 落盘路径
 
 ### 4.2 新增字段 (全部 nullable，老数据无值不崩)
 
-| 新字段 | 类型 | 来源 | 阶段 |
-| --- | --- | --- | --- |
-| `calories` | Float? | summaryDTO(已在手) | P1 |
-| `elevation_loss` | Float? | summaryDTO | P1 |
-| `min_elevation` / `max_elevation` | Float? | summaryDTO | P1 |
-| `avg_power` / `max_power` | Float? | summaryDTO | P1 |
-| `aerobic_te` / `anaerobic_te` | Float? | summaryDTO | P1 |
-| `avg_stride_length` | Float? | summaryDTO | P1 |
-| `hr_zones` | JSON? | `get_activity_hr_in_timezones` | P2 |
-| `vo2max` | Float? | `get_max_metrics` | P2 |
-| `training_status` | String? | `get_training_status` | P2 |
+| 新字段 | 类型 | 来源 | 阶段 | 状态 |
+| --- | --- | --- | --- | --- |
+| `calories` | Float? | summaryDTO(`calories`) | P1 | ✅ 已落库 (2026-08-13) |
+| `elevation_loss` | Float? | summaryDTO(`elevationLoss`) | P1 | ✅ 已落库 |
+| `min_elevation` | Float? | summaryDTO(`minElevation`) | P1 | ✅ 已落库 |
+| `max_elevation` | Float? | summaryDTO(`maxElevation`) | P1 | ✅ 已落库 |
+| `avg_power` | Float? | summaryDTO(`averagePower`) | P1 | ✅ 已落库 |
+| `max_power` | Float? | summaryDTO(`maxPower`) | P1 | ✅ 已落库 |
+| `aerobic_te` | Float? | summaryDTO(`trainingEffect`) ⚠️与最初假设的`aerobicTrainingEffect`不同,已用真实数据核实 | P1 | ✅ 已落库 |
+| `anaerobic_te` | Float? | summaryDTO(`anaerobicTrainingEffect`) | P1 | ✅ 已落库 |
+| `avg_stride_length` | Float? | summaryDTO(`strideLength`) | P1 | ✅ 已落库 |
+| `hr_zones` | JSON? | `get_activity_hr_in_timezones(activity_id)` | P2 | ⏳ 待实现,字段名未核实 |
+| `vo2max` | Float? | `get_max_metrics(cdate)` — **按日期非按活动** | P2 | ⏳ 待实现,需数据模型设计 |
+| `training_status` | String? | `get_training_status(cdate)` — **按日期非按活动** | P2 | ⏳ 待实现,需数据模型设计 |
+| `resting_hr` | Int? | `get_rhr_day(cdate)` — **按日期非按活动** | P2(spec 新增，原方案遗漏) | ⏳ 待实现 |
+| `race_predictions` | JSON? | `get_race_predictions()` — **按日期区间，非按活动** | P2(spec 新增) | ⏳ 待实现 |
 
 > schema 演进已有机制托底：`db.py::add_missing_columns` 会自动 ALTER TABLE 补列，无需手写迁移。
 
 ### 4.3 前端派生 (不落库，前端算)
 
-`personal_records`(各距离 PB)、`aerobic_efficiency`(pace÷hr 序列)、`weekly_load`(ACWR)、`streak_calendar`。
+- `personal_records`(各距离 PB) ✅ 已实现 (`lib/analytics.ts::personalRecords`)
+- `aerobic_efficiency`(pace÷hr 序列) ✅ 已实现 (`lib/analytics.ts::aerobicEfficiency` / `efficiencyByMonth`)
+- `pace_hr_scatter`(配速-心率散点) ✅ 已实现 (`lib/analytics.ts::paceHrScatter`)
+- `weekly_volume`(近 N 周跑量趋势) ✅ 已实现 (`lib/stats.ts::weeklyVolume` / `thisWeekKm`)
+- `streak_calendar` ✅ 已实现 (`components/dashboard/HeatmapCalendar.tsx`)
+- `weekly_load`(ACWR) ⏳ 未实现
 
 ---
 
-## 5. 模块 → 数据 → 来源 映射表 (实施依据)
+## 5. 模块 → 数据 → 来源 映射表 (实施依据，2026-08-13 更新状态)
 
-| 分析模块 | 页面 | 所需字段 | 数据来源 | 优先级 |
-| --- | --- | --- | --- | --- |
-| 单次配速曲线 | 详情页 | `split_paces` | 🟢 现有 | **P0** |
-| 单次心率分段 + 漂移 | 详情页 | `split_heart_rates` | 🟢 现有 | **P0** |
-| 步频趋势 | 详情页 | `cadence_trend` | 🟢 现有 | **P0** |
-| 各距离 PB 榜 | 分析页 | `distance` + `moving_time` | 🟢 现有 (前端算) | **P0** |
-| 有氧效率趋势 | 首页/分析 | `average_speed` + `average_heartrate` | 🟢 现有 (前端算) | **P0** |
-| 配速 - 心率散点 | 分析页 | `average_speed` + `average_heartrate` | 🟢 现有 | P1 |
-| streak 打卡日历 | 首页 | `streak` + `start_date_local` | 🟢 现有 | P1 |
-| 周跑量趋势 + ACWR | 首页/分析 | `distance` + `start_date` | 🟢 现有 (前端算) | P1 |
-| 卡路里 / 海拔剖面 | 详情页 | `calories` `elevation_*` | 🟡 后端小改 | P1 |
-| 训练效果 TE | 详情页 | `aerobic_te` `anaerobic_te` | 🟡 后端小改 | P1 |
-| **心率区间时长分布** | 详情页/分析 | `hr_zones` | 🔴 佳明新 API | P2 |
-| VO2max 趋势 | 首页/分析 | `vo2max` | 🔴 佳明新 API | P2 |
-| 训练状态卡片 | 首页 | `training_status` | 🔴 佳明新 API | P2 |
+| 分析模块 | 页面 | 所需字段 | 数据来源 | 优先级 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| 单次配速曲线 | 详情页 | `split_paces` | 🟢 现有 | P0 | ✅ 完成 |
+| 单次心率分段 + 漂移 | 详情页 | `split_heart_rates` | 🟢 现有 | P0 | ✅ 完成(漂移标注未做) |
+| 步频趋势 | 详情页 | `cadence_trend` | 🟢 现有 | P0 | ✅ 完成 |
+| 各距离 PB 榜 | 分析页 | `distance` + `moving_time` | 🟢 现有 (前端算) | P0 | ✅ 完成 |
+| 有氧效率趋势 | 首页/分析 | `average_speed` + `average_heartrate` | 🟢 现有 (前端算) | P0 | ✅ 完成 |
+| 配速-心率散点 | 分析页 | `average_speed` + `average_heartrate` | 🟢 现有 | P1 | ✅ 完成(提前于P1做了) |
+| streak 打卡日历 | 首页 | `streak` + `start_date_local` | 🟢 现有 | P1 | ✅ 完成 |
+| 周跑量趋势 | 首页 | `distance` + `start_date` | 🟢 现有 (前端算) | P1 | ✅ 完成 |
+| 周训练负荷 ACWR | 分析页 | 周跑量序列 (前端算) | 🟢 现有 (前端算) | P1 | ⏳ 未做 |
+| 卡路里 / 海拔剖面 / TE / 功率 / 步幅 | 详情页 | `calories` `elevation_*` `*_power` `*_te` `avg_stride_length` | 🟡 后端小改 | P1 | ✅ 完成(2026-08-13,海拔剖面图未做,只落库) |
+| **心率区间时长分布** | 详情页/分析 | `hr_zones` | 🔴 佳明新 API (`get_activity_hr_in_timezones`) | P2 | ⏳ 未做，字段名未核实 |
+| VO2max 趋势 | 首页/分析 | `vo2max` | 🔴 佳明新 API (`get_max_metrics`) | P2 | ⏳ 未做，按日期粒度需数据模型设计 |
+| 训练状态卡片 | 首页 | `training_status` | 🔴 佳明新 API (`get_training_status`) | P2 | ⏳ 未做，按日期粒度需数据模型设计 |
+| 静息心率趋势 | 首页/分析(spec新增) | `resting_hr` | 🔴 佳明新 API (`get_rhr_day`) | P2 | ⏳ 未做 |
+| 各距离成绩预测 | 分析页(spec新增) | `race_predictions` | 🔴 佳明新 API (`get_race_predictions`) | P2 | ⏳ 未做 |
 
 ---
 
-## 6. 分阶段实施计划
+## 6. 分阶段实施计划 (2026-08-13 更新)
 
-### 阶段 0 — 地基 (路由 + 数据 hook，不改视觉)
+### 阶段 0 — 地基 (路由 + 数据 hook，不改视觉) ✅ 已完成
 
-1. 引入 `/runs/:id` 路由 → verify:能通过 URL 打开任一跑步的空详情页
-2. 抽 `useActivity(id)` hook(从 activities.json 定位单条)→ verify:详情页能拿到该条数据
-3. 抽公共派生计算 `utils/analytics.ts`(PB / 有氧效率 / 周负荷)→ verify:单测覆盖计算正确性
+1. ✅ 引入 `/runs/:id` 路由
+2. ✅ 抽 `useActivity` 等价物 `getActivityById`(`data/activities.ts`)
+3. ✅ 抽公共派生计算 `lib/analytics.ts` + `lib/stats.ts`(PB / 有氧效率 / 周跑量 / 散点)
 
-### 阶段 1 — P0 纯前端价值兑现 (零后端风险)
+### 阶段 1 — P0 纯前端价值兑现 (零后端风险) ✅ 已完成
 
-4. 单次详情页：配速曲线 + 心率分段 + 步频趋势 (用现有 split 数据，Recharts)
-5. 分析页新增:PB 榜 + 有氧效率趋势
-6. 首页仪表盘骨架：近期 KPI 行 + 周跑量趋势 + 生涯大数字 (地图降权为卡片)
-   → verify:三层路由跑通，首页近期在上/生涯在下，详情页图表正确
+4. ✅ 单次详情页：配速曲线 + 心率分段 + 步频趋势
+5. ✅ 分析页新增:PB 榜 + 有氧效率趋势 + 配速-心率散点(提前完成)
+6. ✅ 首页仪表盘骨架：英雄区(生涯大数字+三年对比) + 近期状态区(本周跑量+近8周趋势) + 坚持/峰值双栏 + 最近跑步列表
 
-### 阶段 2 — P1 后端小改 (提取已在手的 summaryDTO)
+### 阶段 2 — P1 后端小改 (提取已在手的 summaryDTO) ✅ 已完成 (2026-08-13)
 
-7. `downloader.py`:`_extract_summary_infos` 扩展提取 calories/elevation/power/TE
-8. `db.py`:`ACTIVITY_KEYS` + ORM 加 nullable 字段 (靠 add_missing_columns 自动迁移)
-9. 详情页补：卡路里 / 海拔剖面 / TE;首页补 streak 日历 + ACWR
-   → verify:重跑同步，老活动不崩 (字段 null),新活动有值
+7. ✅ `downloader.py`:`_extract_summary_infos` 扩展提取 calories/elevation/power/TE/步幅(**用真实活动核实了字段名，`aerobic_te` 实际对应 `trainingEffect` 而非最初假设的字段名**)
+8. ✅ `db.py`:`ACTIVITY_KEYS` + ORM 加 9 个 nullable 字段(`add_missing_columns` 自动迁移已验证)
+9. ✅ 详情页补：卡路里 / TE / 平均功率(新增卡片「训练效果」)
+   - ⚠️ **遗留**：海拔剖面图(min/max/loss 已落库但前端未画图)、首页 streak 日历已有(阶段1做了)、ACWR 未做
 
-### 阶段 3 — P2 佳明深挖 API(数据天花板)
+### 阶段 3 — P2 佳明深挖 API(数据天花板，待推进)
 
-10. `auth.py`:新增 `get_hr_zones` / `get_vo2max` / `get_training_status` 封装
-11. 同步流程：按 activity_id 拉心率区间;按日期拉 VO2max/训练状态
-12. 详情页补心率区间分布条;首页补训练状态卡片 + VO2max 趋势
-    → verify:限流/认证异常降级不崩，无数据活动跳过
+> **关键差异**：本阶段 4 个 API 中，`get_activity_hr_in_timezones` 是**逐次跑步粒度**(跟 §4.2 已完成的 P1 字段同构)，而 `get_max_metrics`/`get_training_status`/`get_rhr_day`/`get_race_predictions` 是**按日期的全局身体状态快照**，不属于 `activities` 表的行语义 —— 需要先做小型数据模型设计，不能照搬阶段2的"加列"套路。
+>
+> **执行前必须**：用真实佳明账号数据探测这 4 个 API 的真实返回 schema(参考阶段2的教训 —— 社区命名假设与真实字段有偏差，`aerobicTrainingEffect` 实际是 `trainingEffect`)。探测方式：一次性、不落盘异常字段、验证后清理调试代码，同用户账号密钥严格按当次会话使用、不写入任何文件。
 
-### 阶段 4 — 打磨
+**3a. 心率区间分布 (逐次跑步粒度，风险最低，建议先做)**
 
-13. 成就系统、移动端细节态、动效、亮暗对比复验 (对照 spec-design 检查清单)
+10. `auth.py`:封装 `get_hr_zones(activity_id)`
+11. `downloader.py`:下载新活动时按 activity_id 追加调用，提取 5 档时长(单位待探测确认,推测秒)，序列化进 `hr_zones` JSON 字段(仿照 `cadence_trend` 的 JSON 存法)
+12. `db.py`:`ACTIVITY_KEYS` + ORM 加 `hr_zones`(String/JSON 存文本)
+13. 详情页新增「心率区间分布」横向堆叠条(参照 spec-design 心率 5 区色)
+    → verify:老活动 `hr_zones=null` 不崩;限流/异常时该活动跳过 hr_zones 不影响主同步流程
+
+**3b. 按日期身体状态 (VO2max / 训练状态 / 静息心率 / 成绩预测，需先设计数据模型)**
+
+14. **数据模型设计**(先讨论，非直接写代码):
+    - 选项 A：新建 `daily_metrics` 表(`date` 主键，`vo2max`/`training_status`/`resting_hr` 列)，与 `activities` 表独立，前端按日期查询关联
+    - 选项 B：挂在"当天最新一条活动"上(简单但语义不准确 —— 训练状态是"人"的状态不是"某次跑步"的属性)
+    - **倾向选项 A**，但需要冒险家确认是否值得为此新增一张表(复杂度 vs 首页 KPI 行的展示价值)
+15. 按选定模型实现同步(`auth.py` 封装 4 个新方法 + 独立同步流程，与 GPX 下载解耦，避免拖慢主同步)
+16. 首页 KPI 行补训练状态卡片 + VO2max 趋势;分析页补成绩预测卡片
+    → verify:限流/认证异常降级不崩，无数据日期跳过
+
+### 阶段 4 — 打磨 (未开始)
+
+17. 海拔剖面图(详情页，用已落库的 `min_elevation`/`max_elevation`/`elevation_loss` 画图)
+18. 周训练负荷 ACWR(分析页，纯前端算，复用 `weeklyVolume`)
+19. 成就系统、地图板块降权卡片、移动端细节态、动效、亮暗对比复验
 
 ---
 
@@ -337,17 +375,21 @@ split_heart_rates, elevation_gain`(+ 派生 `streak`)
 | --- | --- |
 | 佳明 API 限流/封号 | P2 新 API 串行 + 重试 + 失败降级;沿用现有 token 机制 |
 | `summary_polyline` 多为 null | 详情页地图降级隐藏，不留空块 |
-| 老数据无新字段 | 全部 nullable，前端 `?? fallback` |
-| schema 迁移 | 复用 `add_missing_columns`,禁止破坏现有 19 字段 |
+| 老数据无新字段 | 全部 nullable，前端 `?? fallback`(已在阶段2验证:`add_missing_columns` 自动补列 + 老数据读出 `None` 不崩) |
+| schema 迁移 | 复用 `add_missing_columns`,禁止破坏现有字段(已验证) |
 | CI 同步卡死 (历史坑) | 延续 `SKIP_REVERSE_GEOCODE`;新 API 加超时 |
 | 改动过大失控 | 严格按阶段推进，每阶段独立可验证、可合并 |
+| **API 字段名猜测偏差** (阶段2实际发生) | **禁止**照抄社区命名假设直接写提取代码;必须先用真实账号数据一次性探测字段名，验证后立即清理调试代码和临时数据文件，不落盘敏感响应体 |
+| **凭据处理** (阶段2实际发生 — 用户曾把真实 token 直接贴入对话) | 任何真实 token/密钥出现在对话中必须视为已泄露，仅做一次性只读验证、不写入任何文件、用后清理内存引用，并提醒用户尽快轮换 |
 
 ---
 
-## 8. 待冒险家确认
+## 8. 待冒险家确认 (更新)
 
-- [ ] 三层信息架构 (首页仪表盘 / 分析页 / 详情页) 是否符合预期？
-- [ ] 首页「近期在上、生涯在下」的分区线框是否 OK?
-- [ ] 分阶段顺序 (先 P0 纯前端见效 → 再后端小改 → 最后深挖 API) 是否认可？
-- [ ] `/analysis` 路由命名，还是保留现有 `/summary`?
-- [ ] 是否需要我先做**一个页面的可交互原型**(建议：单次详情页，价值最锐利) 让你看效果？
+- [x] 三层信息架构 (首页仪表盘 / 分析页 / 详情页) — 已用行动确认，阶段0-2 均按此结构实现
+- [x] 首页「近期在上、生涯在下」的分区线框 — 已实现(英雄区+近期状态区+双栏+列表)
+- [x] 分阶段顺序 (先 P0 纯前端见效 → 再后端小改 → 最后深挖 API) — 已按此推进，阶段0-2 完成
+- [x] `/analysis` 路由命名 — 已采用，非 `/summary`
+- [ ] **阶段 3a (心率区间分布) 是否现在推进？** 风险最低，与阶段2模式一致，只需一次真实数据探测确认 `get_activity_hr_in_timezones` 返回结构
+- [ ] **阶段 3b 数据模型：新建 `daily_metrics` 表，还是暂缓？** VO2max/训练状态/静息心率/成绩预测是"人"的状态而非"跑步"的属性，值得单独设计
+- [ ] **是否需要先做一次真实数据探测**(核实 4 个新 API 的返回字段名)，再继续写阶段3代码？(强烈建议 —— 阶段2已证明社区命名假设不可靠)

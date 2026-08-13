@@ -39,7 +39,12 @@ export const personalRecords = (activities: Activity[]): PersonalRecord[] => {
       .filter((c) => c.seconds > 0);
     if (!candidates.length) continue;
     const best = candidates.reduce((a, b) => (b.seconds < a.seconds ? b : a));
-    records.push({ key: dist.key, label: dist.label, activity: best.activity, seconds: best.seconds });
+    records.push({
+      key: dist.key,
+      label: dist.label,
+      activity: best.activity,
+      seconds: best.seconds,
+    });
   }
   return records;
 };
@@ -57,7 +62,27 @@ export interface EfficiencyPoint {
   count: number;
 }
 
-export const efficiencyByMonth = (activities: Activity[]): EfficiencyPoint[] => {
+// 配速-心率散点 (分析页用)。每次跑步一个点：配速 (秒/km，越小越快) × 平均心率。
+export interface PaceHrPoint {
+  runId: number;
+  paceSecPerKm: number;
+  hr: number;
+  distanceKm: number;
+}
+
+export const paceHrScatter = (activities: Activity[]): PaceHrPoint[] =>
+  activities
+    .filter((a) => a.type === 'Run' && a.average_heartrate && a.average_speed)
+    .map((a) => ({
+      runId: a.run_id,
+      paceSecPerKm: Math.round(1000 / a.average_speed!),
+      hr: Math.round(a.average_heartrate!),
+      distanceKm: Math.round((a.distance / 1000) * 10) / 10,
+    }));
+
+export const efficiencyByMonth = (
+  activities: Activity[]
+): EfficiencyPoint[] => {
   const map = new Map<string, number[]>();
   for (const a of activities) {
     const eff = aerobicEfficiency(a);
@@ -70,7 +95,8 @@ export const efficiencyByMonth = (activities: Activity[]): EfficiencyPoint[] => 
   return [...map.entries()]
     .map(([month, vals]) => ({
       month,
-      value: Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10,
+      value:
+        Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10,
       count: vals.length,
     }))
     .sort((a, b) => a.month.localeCompare(b.month));

@@ -39,10 +39,10 @@
   --color-bar-muted: #dce3de;
 
   /* ---- 字体 (系统栈占位)---- */
-  --font-display:
-    'Archivo', 'Noto Sans SC', -apple-system, system-ui, sans-serif;
-  --font-body:
-    'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-display: 'Archivo', 'Noto Sans SC', -apple-system, system-ui,
+    sans-serif;
+  --font-body: 'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   /* ---- 圆角 ---- */

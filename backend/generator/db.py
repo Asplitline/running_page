@@ -53,6 +53,16 @@ ACTIVITY_KEYS = [
     "split_paces",
     "split_heart_rates",
     "elevation_gain",
+    "calories",
+    "elevation_loss",
+    "min_elevation",
+    "max_elevation",
+    "avg_power",
+    "max_power",
+    "aerobic_te",
+    "anaerobic_te",
+    "avg_stride_length",
+    "hr_zones",
 ]
 
 
@@ -78,6 +88,16 @@ class Activity(Base):
     split_paces = Column(String)
     split_heart_rates = Column(String)
     elevation_gain = Column(Float)
+    calories = Column(Float)
+    elevation_loss = Column(Float)
+    min_elevation = Column(Float)
+    max_elevation = Column(Float)
+    avg_power = Column(Float)
+    max_power = Column(Float)
+    aerobic_te = Column(Float)
+    anaerobic_te = Column(Float)
+    avg_stride_length = Column(Float)
+    hr_zones = Column(String)
     streak = None
 
     def to_dict(self):
@@ -86,7 +106,12 @@ class Activity(Base):
             attr = getattr(self, key)
             if isinstance(attr, (datetime.timedelta, datetime.datetime)):
                 out[key] = str(attr)
-            elif key in {"cadence_trend", "split_paces", "split_heart_rates"}:
+            elif key in {
+                "cadence_trend",
+                "split_paces",
+                "split_heart_rates",
+                "hr_zones",
+            }:
                 out[key] = json.loads(attr) if attr else None
             else:
                 out[key] = attr
@@ -95,6 +120,33 @@ class Activity(Base):
             out["streak"] = self.streak
 
         return out
+
+
+class DailyMetric(Base):
+    """佳明每日身体状态快照(VO2max/训练状态),按日期而非按跑步记录。
+
+    与 Activity 表独立: 同一天可能有 0~N 次跑步, 但身体状态只有一份,
+    语义上不属于"某次跑步"的属性。数据来源见 sync_garmin/daily_metrics.py。
+    """
+
+    __tablename__ = "daily_metrics"
+
+    date = Column(String, primary_key=True)  # YYYY-MM-DD
+    vo2max = Column(Float)
+    vo2max_precise = Column(Float)
+    training_status = Column(Integer)  # 佳明原始枚举值
+    training_status_label = Column(String)  # trainingStatusFeedbackPhrase
+    weekly_training_load = Column(Float)
+
+    def to_dict(self):
+        return {
+            "date": self.date,
+            "vo2max": self.vo2max,
+            "vo2max_precise": self.vo2max_precise,
+            "training_status": self.training_status,
+            "training_status_label": self.training_status_label,
+            "weekly_training_load": self.weekly_training_load,
+        }
 
 
 def update_or_create_activity(session, run_activity):
@@ -167,6 +219,16 @@ def update_or_create_activity(session, run_activity):
                 summary_polyline=(
                     run_activity.map and run_activity.map.summary_polyline or ""
                 ),
+                calories=getattr(run_activity, "calories", None),
+                elevation_loss=getattr(run_activity, "elevation_loss", None),
+                min_elevation=getattr(run_activity, "min_elevation", None),
+                max_elevation=getattr(run_activity, "max_elevation", None),
+                avg_power=getattr(run_activity, "avg_power", None),
+                max_power=getattr(run_activity, "max_power", None),
+                aerobic_te=getattr(run_activity, "aerobic_te", None),
+                anaerobic_te=getattr(run_activity, "anaerobic_te", None),
+                avg_stride_length=getattr(run_activity, "avg_stride_length", None),
+                hr_zones=getattr(run_activity, "hr_zones", None),
             )
             session.add(activity)
             created = True
@@ -188,6 +250,18 @@ def update_or_create_activity(session, run_activity):
             activity.summary_polyline = (
                 run_activity.map and run_activity.map.summary_polyline or ""
             )
+            activity.calories = getattr(run_activity, "calories", None)
+            activity.elevation_loss = getattr(run_activity, "elevation_loss", None)
+            activity.min_elevation = getattr(run_activity, "min_elevation", None)
+            activity.max_elevation = getattr(run_activity, "max_elevation", None)
+            activity.avg_power = getattr(run_activity, "avg_power", None)
+            activity.max_power = getattr(run_activity, "max_power", None)
+            activity.aerobic_te = getattr(run_activity, "aerobic_te", None)
+            activity.anaerobic_te = getattr(run_activity, "anaerobic_te", None)
+            activity.avg_stride_length = getattr(
+                run_activity, "avg_stride_length", None
+            )
+            activity.hr_zones = getattr(run_activity, "hr_zones", None)
     except Exception as e:
         print(f"something wrong with {run_activity.id}")
         print(str(e))

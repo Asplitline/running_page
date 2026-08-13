@@ -13,7 +13,11 @@ const PAD = 12;
 
 export const EfficiencyTrend = ({ points }: Props) => {
   if (points.length < 2) {
-    return <p className="text-sm text-[var(--color-ink-3)]">数据不足，至少需要两个月</p>;
+    return (
+      <p className="text-sm text-[var(--color-ink-3)]">
+        数据不足，至少需要两个月
+      </p>
+    );
   }
 
   const vals = points.map((p) => p.value);
@@ -27,13 +31,25 @@ export const EfficiencyTrend = ({ points }: Props) => {
     return { x, y, ...p };
   });
 
-  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const line = pts
+    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(' ');
   const area = `${line} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full"
+      preserveAspectRatio="none"
+    >
       <path d={area} fill="var(--color-route)" opacity="0.08" />
-      <path d={line} fill="none" stroke="var(--color-route)" strokeWidth="2" strokeLinejoin="round" />
+      <path
+        d={line}
+        fill="none"
+        stroke="var(--color-route)"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
       {pts.map((p) => (
         <Tooltip
           key={p.month}

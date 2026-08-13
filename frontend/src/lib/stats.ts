@@ -17,10 +17,15 @@ export interface OverallStats {
   longestRunKm: number; // 最长单次跑步
 }
 
-export const overallStats = (activities: Activity[], year: number): OverallStats => {
+export const overallStats = (
+  activities: Activity[],
+  year: number
+): OverallStats => {
   const runs = activities.filter(isRun);
   const totalMeters = runs.reduce((s, a) => s + a.distance, 0);
-  const yearMeters = runs.filter((a) => yearOf(a) === year).reduce((s, a) => s + a.distance, 0);
+  const yearMeters = runs
+    .filter((a) => yearOf(a) === year)
+    .reduce((s, a) => s + a.distance, 0);
   const longestMeters = runs.reduce((m, a) => Math.max(m, a.distance), 0);
   return {
     totalDistanceKm: toKm(totalMeters),
@@ -37,7 +42,10 @@ export interface DayCell {
   distanceKm: number;
 }
 
-export const heatmapByDay = (activities: Activity[], year: number): Map<string, DayCell> => {
+export const heatmapByDay = (
+  activities: Activity[],
+  year: number
+): Map<string, DayCell> => {
   const map = new Map<string, DayCell>();
   for (const a of activities) {
     if (!isRun(a) || yearOf(a) !== year) continue;
@@ -78,7 +86,10 @@ export interface YearStat {
 
 export const statsByYear = (activities: Activity[]): YearStat[] => {
   // year → 累加器
-  const acc = new Map<number, { meters: number; sec: number; runs: number; hrSum: number; hrN: number }>();
+  const acc = new Map<
+    number,
+    { meters: number; sec: number; runs: number; hrSum: number; hrN: number }
+  >();
   for (const a of activities) {
     if (!isRun(a)) continue;
     const y = yearOf(a);
@@ -131,4 +142,61 @@ export const latestMonthKm = (activities: Activity[]): MonthKm => {
     .filter((a) => a.start_date_local.slice(0, 7) === latest)
     .reduce((s, a) => s + a.distance, 0);
   return { month: latest, km: toKm(meters) };
+};
+
+// 近 8 周跑量趋势 (首页近期状态区用)。以数据里最新一条记录所在日为锚点向前分桶，
+// 不依赖 Date.now()，保证可复现。周边界 = 锚点日往前每 7 天一段 (非自然周)。
+export interface WeekKm {
+  weekStart: string; // YYYY-MM-DD，该周段起始日
+  km: number;
+}
+
+const toDateOnly = (localDate: string): Date =>
+  new Date(localDate.slice(0, 10));
+
+export const weeklyVolume = (activities: Activity[], weeks = 8): WeekKm[] => {
+  const runs = activities.filter(isRun);
+  if (runs.length === 0) return [];
+
+  const anchor = runs.reduce((m, a) => {
+    const d = a.start_date_local.slice(0, 10);
+    return d > m ? d : m;
+  }, '');
+  const anchorDate = toDateOnly(anchor);
+
+  const buckets: WeekKm[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const start = new Date(anchorDate);
+    start.setDate(start.getDate() - i * 7 - 6);
+    const end = new Date(anchorDate);
+    end.setDate(end.getDate() - i * 7);
+    const meters = runs
+      .filter((a) => {
+        const d = toDateOnly(a.start_date_local);
+        return d >= start && d <= end;
+      })
+      .reduce((s, a) => s + a.distance, 0);
+    buckets.push({
+      weekStart: start.toISOString().slice(0, 10),
+      km: toKm(meters),
+    });
+  }
+  return buckets;
+};
+
+// 本周跑量 (近 8 周趋势的最后一段，即锚点日所在的 7 天窗口)。
+export const thisWeekKm = (activities: Activity[]): number => {
+  const weeks = weeklyVolume(activities, 1);
+  return weeks.length ? weeks[0].km : 0;
+};
+
+// 急慢性负荷比 (ACWR) = 急性负荷(近1周) / 慢性负荷(近4周周均)。
+// >1.5 通常视为受伤风险升高，<0.8 视为负荷不足，理想区间 0.8~1.3。
+export const acwr = (activities: Activity[]): number | null => {
+  const weeks = weeklyVolume(activities, 4);
+  if (weeks.length < 4) return null;
+  const acute = weeks[weeks.length - 1].km;
+  const chronic = weeks.reduce((s, w) => s + w.km, 0) / weeks.length;
+  if (chronic === 0) return null;
+  return Math.round((acute / chronic) * 100) / 100;
 };

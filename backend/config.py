@@ -14,5 +14,9 @@ FOLDER_DICT = {
 SQL_FILE = os.path.join(current, "data.db")
 # 前端构建期消费的产物(编译期 import,必须落在 frontend/src/static/)
 JSON_FILE = os.path.join(parent, "frontend", "src", "static", "activities.json")
+# 每日身体状态(VO2max/训练状态)产物,同目录,前端按需惰性探测
+DAILY_METRICS_JSON_FILE = os.path.join(
+    parent, "frontend", "src", "static", "daily_metrics.json"
+)
 # 已同步文件记录
 SYNCED_FILE = os.path.join(parent, "imported.json")

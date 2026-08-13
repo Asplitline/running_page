@@ -50,7 +50,9 @@ describe('dashboard', () => {
     render(
       <TooltipProvider>
         <HeatmapCalendar
-          activities={[mk({ distance: 8000, start_date_local: '2024-03-20 08:00:00' })]}
+          activities={[
+            mk({ distance: 8000, start_date_local: '2024-03-20 08:00:00' }),
+          ]}
           year={2024}
         />
       </TooltipProvider>

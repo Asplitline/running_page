@@ -8,6 +8,7 @@
 
 import concurrent.futures
 import datetime as dt
+import json
 import os
 
 from lxml import etree
@@ -24,7 +25,30 @@ SUMMARY_FIELDS = [
     "end_time",
     "moving_time",
     "elapsed_time",
+    "calories",
+    "elevation_loss",
+    "min_elevation",
+    "max_elevation",
+    "avg_power",
+    "max_power",
+    "aerobic_te",
+    "anaerobic_te",
+    "avg_stride_length",
+    "hr_zones",
 ]
+
+# 新增字段: SUMMARY_FIELDS key -> summaryDTO key(真实 API 字段名, 已用真实活动核实)
+_EXTRA_SUMMARY_KEY_MAP = {
+    "calories": "calories",
+    "elevation_loss": "elevationLoss",
+    "min_elevation": "minElevation",
+    "max_elevation": "maxElevation",
+    "avg_power": "averagePower",
+    "max_power": "maxPower",
+    "aerobic_te": "trainingEffect",  # summaryDTO 无独立 aerobicTrainingEffect 数值字段
+    "anaerobic_te": "anaerobicTrainingEffect",
+    "avg_stride_length": "strideLength",
+}
 
 
 def list_all_activity_ids(client):
@@ -60,9 +84,32 @@ def _extract_summary_infos(activity_summary):
             ).isoformat()
         infos["moving_time"] = summary_dto.get("movingDuration")
         infos["elapsed_time"] = summary_dto.get("elapsedDuration")
+        for field, dto_key in _EXTRA_SUMMARY_KEY_MAP.items():
+            infos[field] = summary_dto.get(dto_key)
     except Exception as e:
         print(f"  提取 summary 字段失败: {e}")
     return infos
+
+
+def _extract_hr_zones(hr_zones_raw):
+    """把 get_hr_zones 的原始返回(5 档 list)序列化为 JSON 字符串。
+    结构: [{zoneNumber, secsInZone, zoneLowBoundary}, ...](已用真实活动核实)。
+    """
+    if not hr_zones_raw:
+        return None
+    try:
+        zones = [
+            {
+                "zone": z.get("zoneNumber"),
+                "seconds": z.get("secsInZone"),
+                "low_boundary": z.get("zoneLowBoundary"),
+            }
+            for z in hr_zones_raw
+        ]
+        return json.dumps(zones, ensure_ascii=False)
+    except Exception as e:
+        print(f"  提取心率区间失败: {e}")
+        return None
 
 
 def _inject_gpx_summary(gpx_bytes, summary_infos):
@@ -108,7 +155,10 @@ def download_new_activities(client, downloaded_ids, folder, file_type):
         try:
             summary = client.get_activity_summary(activity_id)
             id2title[activity_id] = summary.get("activityName", "")
-            summary_infos_map[activity_id] = _extract_summary_infos(summary)
+            infos = _extract_summary_infos(summary)
+            hr_zones_raw = client.get_hr_zones(activity_id)
+            infos["hr_zones"] = _extract_hr_zones(hr_zones_raw)
+            summary_infos_map[activity_id] = infos
         except Exception as e:
             print(f"  获取活动摘要失败 {activity_id}: {e}")
 

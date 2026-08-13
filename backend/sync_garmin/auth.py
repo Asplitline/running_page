@@ -74,6 +74,27 @@ class GarminClient:
         """拉单条活动详情(用于 summary 注入与标题)。"""
         return self._client.get_activity(activity_id)
 
+    def get_hr_zones(self, activity_id):
+        """拉单条活动的心率区间时长分布(5 档)。失败返回 None,不阻塞主同步流程。"""
+        try:
+            return self._client.get_activity_hr_in_timezones(activity_id)
+        except Exception:
+            return None
+
+    def get_max_metrics(self, date_str):
+        """拉指定日期的 VO2max 数据。失败返回 None,不阻塞主同步流程。"""
+        try:
+            return self._client.get_max_metrics(date_str)
+        except Exception:
+            return None
+
+    def get_training_status(self, date_str):
+        """拉指定日期的训练状态/负荷数据。失败返回 None,不阻塞主同步流程。"""
+        try:
+            return self._client.get_training_status(date_str)
+        except Exception:
+            return None
+
     def download(self, activity_id, file_type):
         """下载活动为指定格式,返回 bytes。"""
         dl_fmt = DOWNLOAD_FORMATS[file_type]

@@ -3,6 +3,7 @@ import {
   personalRecords,
   aerobicEfficiency,
   efficiencyByMonth,
+  paceHrScatter,
 } from './analytics';
 import type { Activity } from '@/data/types';
 
@@ -69,7 +70,9 @@ describe('personalRecords', () => {
 
 describe('aerobicEfficiency', () => {
   it('speed/hr × 100', () => {
-    expect(aerobicEfficiency(mk({ average_speed: 3.0, average_heartrate: 150 }))).toBe(2);
+    expect(
+      aerobicEfficiency(mk({ average_speed: 3.0, average_heartrate: 150 }))
+    ).toBe(2);
   });
   it('无心率 → null', () => {
     expect(aerobicEfficiency(mk({ average_heartrate: null }))).toBeNull();
@@ -79,9 +82,21 @@ describe('aerobicEfficiency', () => {
 describe('efficiencyByMonth', () => {
   it('按月聚合并排序', () => {
     const acts = [
-      mk({ start_date_local: '2024-03-20 08:00:00', average_speed: 3.0, average_heartrate: 150 }),
-      mk({ start_date_local: '2024-03-25 08:00:00', average_speed: 3.6, average_heartrate: 150 }),
-      mk({ start_date_local: '2024-02-01 08:00:00', average_speed: 3.0, average_heartrate: 150 }),
+      mk({
+        start_date_local: '2024-03-20 08:00:00',
+        average_speed: 3.0,
+        average_heartrate: 150,
+      }),
+      mk({
+        start_date_local: '2024-03-25 08:00:00',
+        average_speed: 3.6,
+        average_heartrate: 150,
+      }),
+      mk({
+        start_date_local: '2024-02-01 08:00:00',
+        average_speed: 3.0,
+        average_heartrate: 150,
+      }),
     ];
     const pts = efficiencyByMonth(acts);
     expect(pts.map((p) => p.month)).toEqual(['2024-02', '2024-03']);
@@ -89,5 +104,23 @@ describe('efficiencyByMonth', () => {
   });
   it('跳过无心率', () => {
     expect(efficiencyByMonth([mk({ average_heartrate: null })])).toEqual([]);
+  });
+});
+
+describe('paceHrScatter', () => {
+  it('speed(m/s) → 配速(秒/km) + 心率', () => {
+    const pts = paceHrScatter([
+      mk({ run_id: 7, average_speed: 3.0, average_heartrate: 150 }),
+    ]);
+    expect(pts).toEqual([
+      { runId: 7, paceSecPerKm: 333, hr: 150, distanceKm: 5 },
+    ]);
+  });
+  it('跳过无心率或无速度', () => {
+    expect(paceHrScatter([mk({ average_heartrate: null })])).toEqual([]);
+    expect(paceHrScatter([mk({ average_speed: 0 })])).toEqual([]);
+  });
+  it('排除非 Run 类型', () => {
+    expect(paceHrScatter([mk({ type: 'cycling' })])).toEqual([]);
   });
 });

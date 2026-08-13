@@ -17,7 +17,13 @@ interface TabsProps {
   ariaLabel: string;
 }
 
-export const Tabs = ({ items, value, onValueChange, children, ariaLabel }: TabsProps) => (
+export const Tabs = ({
+  items,
+  value,
+  onValueChange,
+  children,
+  ariaLabel,
+}: TabsProps) => (
   <RadixTabs.Root value={value} onValueChange={onValueChange}>
     <RadixTabs.List
       aria-label={ariaLabel}
@@ -27,7 +33,7 @@ export const Tabs = ({ items, value, onValueChange, children, ariaLabel }: TabsP
         <RadixTabs.Trigger
           key={item.value}
           value={item.value}
-          className="flex-1 rounded-[var(--radius-pill)] px-4 py-2 font-mono text-sm text-[var(--color-ink-2)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] data-[state=active]:bg-[var(--color-card)] data-[state=active]:text-[var(--color-ink)] data-[state=active]:shadow-[var(--shadow-soft)]"
+          className="flex-1 rounded-[var(--radius-pill)] px-4 py-2 font-mono text-sm text-[var(--color-ink-2)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] data-[state=active]:bg-[var(--color-card)] data-[state=active]:text-[var(--color-ink)] data-[state=active]:shadow-[var(--shadow-soft)]"
         >
           {item.label}
         </RadixTabs.Trigger>

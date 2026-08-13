@@ -1,7 +1,8 @@
 // 纯格式化函数。数值展示统一走这里。
 
 // 米 → 公里，保留 1 位
-export const toKm = (meters: number): number => Math.round((meters / 1000) * 10) / 10;
+export const toKm = (meters: number): number =>
+  Math.round((meters / 1000) * 10) / 10;
 
 // average_speed(m/s)→ 配速 "M:SS /km"
 export const paceFromSpeed = (speedMs: number): string => {
