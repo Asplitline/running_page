@@ -1,4 +1,10 @@
-import { overallStats, weeklyVolume, thisWeekKm, acwr } from './stats';
+import {
+  overallStats,
+  weeklyVolume,
+  thisWeekKm,
+  acwr,
+  tracksWithPolylineCount,
+} from './stats';
 import type { Activity } from '@/data/types';
 
 // 最小活动工厂 (对齐 analytics.test.ts 风格)
@@ -296,5 +302,20 @@ describe('acwr', () => {
   });
   it('慢性负荷为 0 → null', () => {
     expect(acwr([])).toBeNull();
+  });
+});
+
+describe('tracksWithPolylineCount', () => {
+  it('只计有轨迹的 Run', () => {
+    const acts = [
+      mk({ type: 'Run', summary_polyline: 'abc' }),
+      mk({ type: 'Run', summary_polyline: null }),
+      mk({ type: 'Run', summary_polyline: '' }),
+      mk({ type: 'cycling', summary_polyline: 'xyz' }),
+    ];
+    expect(tracksWithPolylineCount(acts)).toBe(1);
+  });
+  it('空数组 → 0', () => {
+    expect(tracksWithPolylineCount([])).toBe(0);
   });
 });

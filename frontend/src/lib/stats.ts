@@ -200,3 +200,9 @@ export const acwr = (activities: Activity[]): number | null => {
   if (chronic === 0) return null;
   return Math.round((acute / chronic) * 100) / 100;
 };
+
+// 有完整 GPS 轨迹的跑步次数 (首页地图卡片用)。
+// 注:location_country 在 CI 同步时因 SKIP_REVERSE_GEOCODE 恒为空，
+// 不能用于统计"城市数"，故改用轨迹覆盖率。
+export const tracksWithPolylineCount = (activities: Activity[]): number =>
+  activities.filter((a) => isRun(a) && !!a.summary_polyline).length;

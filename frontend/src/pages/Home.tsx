@@ -1,13 +1,19 @@
 import { Link } from 'react-router-dom';
 import { activities } from '@/data/activities';
 import { latestDailyMetric } from '@/data/dailyMetrics';
-import { activeDays, weeklyVolume, thisWeekKm } from '@/lib/stats';
+import {
+  activeDays,
+  weeklyVolume,
+  thisWeekKm,
+  tracksWithPolylineCount,
+} from '@/lib/stats';
 import { formatKm } from '@/lib/format';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import HeroBanner from '@/components/dashboard/HeroBanner';
 import HeatmapCalendar from '@/components/dashboard/HeatmapCalendar';
 import PrSnapshot from '@/components/dashboard/PrSnapshot';
 import RecentRuns from '@/components/dashboard/RecentRuns';
+import AchievementBadges from '@/components/dashboard/AchievementBadges';
 import { WeeklyVolumeChart } from '@/components/charts/WeeklyVolumeChart';
 
 // 首页成就仪表盘 (M3)。金字塔布局：英雄区 (顶) → 坚持 + 峰值双栏 (中) → 最近列表 (折叠线下)。
@@ -43,6 +49,11 @@ const Home = () => {
         </h1>
 
         <HeroBanner activities={activities} year={year} />
+
+        {/* 成就徽章行：里程碑(累计里程/次数) + 距离档首次达成，无成就时组件自身不渲染 */}
+        <div className="mt-6">
+          <AchievementBadges activities={activities} />
+        </div>
 
         {/* 近期状态：本周跑量 + 近 8 周趋势 + VO2max/训练状态(有数据才显示) */}
         <section className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
@@ -115,6 +126,54 @@ const Home = () => {
             </div>
           </section>
         </div>
+
+        {/* 地图板块降权为卡片：无真实地图渲染(新前端零 mapbox 依赖)，
+            用轨迹覆盖率代替"城市数"——location_country 因 CI 同步时
+            SKIP_REVERSE_GEOCODE 恒为空，不可用 */}
+        <section className="mt-6 flex items-center gap-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
+          <div className="flex-1">
+            <p className="eyebrow">轨迹 · 足迹地图</p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span
+                className="tnum text-4xl font-extrabold tracking-tight text-[var(--color-ink)]"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {tracksWithPolylineCount(activities)}
+              </span>
+              <span className="text-sm text-[var(--color-ink-3)]">
+                次跑步留下了完整 GPS 轨迹
+              </span>
+            </div>
+          </div>
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            className="shrink-0 opacity-60"
+            aria-hidden="true"
+          >
+            {[
+              [12, 20],
+              [24, 12],
+              [38, 26],
+              [50, 16],
+              [58, 32],
+              [44, 44],
+              [30, 40],
+              [18, 52],
+              [40, 58],
+              [56, 54],
+            ].map(([cx, cy], i) => (
+              <circle
+                key={i}
+                cx={cx}
+                cy={cy}
+                r={i % 3 === 0 ? 4 : 2.5}
+                fill="var(--color-route)"
+              />
+            ))}
+          </svg>
+        </section>
 
         {/* 折叠线下：最近跑步退为落脚点，去等权卡壳弱化 */}
         <section className="mt-12">
