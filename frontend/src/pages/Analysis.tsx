@@ -82,7 +82,7 @@ const TrainingLog = () => {
         <MonthLogPanel months={months} />
       </Tabs.Panel>
       <Tabs.Panel value="year">
-        <YearLogPanel years={years} />
+        <YearLogPanel years={years} lifetime={lifetime} />
       </Tabs.Panel>
       <Tabs.Panel value="total">
         <TotalLogPanel lifetime={lifetime} />

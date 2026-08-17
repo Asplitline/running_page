@@ -16,6 +16,7 @@ interface Props {
   data: BarDatum[];
   valueLabel?: string; // tooltip 里数值的单位文案，如 "km"
   height?: number;
+  highlightLabel?: string; // 指定某个 label 用强调色高亮(如峰值年份柱)
 }
 
 const cssVar = (name: string, fallback: string): string => {
@@ -64,9 +65,15 @@ const useNivoTheme = (): PartialTheme =>
     };
   }, []);
 
-export const BarChart = ({ data, valueLabel = '', height = 200 }: Props) => {
+export const BarChart = ({
+  data,
+  valueLabel = '',
+  height = 200,
+  highlightLabel,
+}: Props) => {
   const theme = useNivoTheme();
   const route = cssVar('--color-route', '#378add');
+  const accent = cssVar('--color-accent', '#ef7d33');
 
   if (!data.length) {
     return <p className="text-sm text-[var(--color-ink-3)]">暂无数据</p>;
@@ -80,7 +87,11 @@ export const BarChart = ({ data, valueLabel = '', height = 200 }: Props) => {
         indexBy="label"
         margin={{ top: 8, right: 8, bottom: 24, left: 32 }}
         padding={0.3}
-        colors={[route]}
+        colors={
+          highlightLabel
+            ? (d) => (String(d.indexValue) === highlightLabel ? accent : route)
+            : [route]
+        }
         theme={theme}
         borderRadius={2}
         enableLabel={false}

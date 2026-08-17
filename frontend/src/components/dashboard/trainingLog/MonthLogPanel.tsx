@@ -13,22 +13,29 @@ export const MonthLogPanel = ({ months }: Props) => {
     return <p className="text-sm text-[var(--color-ink-3)]">暂无数据</p>;
   }
 
+  const ordered = [...months].reverse(); // 最新月在前
+
   return (
-    <div className="flex flex-col gap-4">
-      {[...months].reverse().map((m) => (
+    <div className="grid gap-4 lg:grid-cols-12">
+      {ordered.map((m, i) => (
         <div
           key={m.month}
-          className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-5"
+          className={`rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-5 ${
+            i === 0 ? 'lg:col-span-8' : 'lg:col-span-4'
+          }`}
         >
           <div className="flex items-baseline justify-between">
             <p className="eyebrow">{m.month}</p>
-            <span className="tnum text-2xl font-bold">
-              {m.distanceKm}
-              <span className="ml-1 text-sm font-normal text-[var(--color-ink-3)]">
-                km
-              </span>
+            <span className="font-mono text-xs text-[var(--color-ink-3)]">
+              {m.count} 次跑步
             </span>
           </div>
+          <span className="tnum text-2xl font-bold">
+            {m.distanceKm}
+            <span className="ml-1 text-sm font-normal text-[var(--color-ink-3)]">
+              km
+            </span>
+          </span>
 
           <div className="mt-3 grid grid-cols-3 gap-4">
             <div>

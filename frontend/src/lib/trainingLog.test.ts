@@ -3,8 +3,10 @@ import {
   monthlyLog,
   yearlyLog,
   lifetimeLog,
+  fastestSplitWindow,
+  matchingRaceDistance,
+  trainingLogPersonalRecords,
 } from './trainingLog';
-import { personalRecords } from './analytics';
 import type { Activity } from '@/data/types';
 
 // 最小活动工厂 (对齐 analytics.test.ts 风格)
@@ -117,27 +119,27 @@ describe('yearlyLog', () => {
     expect(result[0].monthlyChartValues).toHaveLength(12);
     expect(result[0].monthlyChartValues.find((m) => m.month === 3)?.km).toBe(5);
   });
-  it('年度 PB 与 personalRecords(该年子集) 结果一致', () => {
+  it('年度 PB 只统计该年内数据，不跨年比较', () => {
     const acts = [
       mk({
         run_id: 1,
-        distance: 5000,
-        moving_time: '0:22:00',
+        distance: 21097,
+        moving_time: '1:50:00',
         start_date_local: '2024-05-01 08:00:00',
       }),
       mk({
         run_id: 2,
-        distance: 5000,
-        moving_time: '0:20:00',
+        distance: 21097,
+        moving_time: '1:40:00',
         start_date_local: '2025-05-01 08:00:00',
       }),
     ];
     const result = yearlyLog(acts);
     const y2024 = result.find((y) => y.year === 2024)!;
-    const expected = personalRecords(acts.filter((a) => a.start_date_local.startsWith('2024')));
-    expect(y2024.personalRecords).toEqual(expected);
-    // 2024 年最好成绩应是本年内 22 分钟那条，而非跨年最快的 2025 年 20 分钟
-    expect(y2024.personalRecords.find((p) => p.key === '5k')?.seconds).toBe(1320);
+    // 2024 年最好成绩应是本年内 1:50:00 那条，而非跨年最快的 2025 年 1:40:00
+    expect(y2024.personalRecords.find((p) => p.key === 'half')?.seconds).toBe(
+      6600
+    );
   });
   it('空数组 → 空', () => {
     expect(yearlyLog([])).toEqual([]);
@@ -145,31 +147,159 @@ describe('yearlyLog', () => {
 });
 
 describe('lifetimeLog', () => {
-  it('累计里程/次数/历年趋势', () => {
+  it('累计里程/次数/历年趋势/峰值年份', () => {
     const acts = [
       mk({ distance: 5000, start_date_local: '2024-01-01 08:00:00' }),
       mk({ distance: 8000, start_date_local: '2025-01-01 08:00:00' }),
     ];
     const result = lifetimeLog(acts);
-    expect(result.totalKm).toBe(13);
-    expect(result.totalRuns).toBe(2);
+    expect(result.distanceKm).toBe(13);
+    expect(result.count).toBe(2);
     expect(result.yearlyTrend).toEqual([
       { year: 2024, km: 5 },
       { year: 2025, km: 8 },
     ]);
+    expect(result.peakYear).toEqual({ year: 2025, km: 8 });
   });
-  it('里程碑文案：未达 500km 为 null', () => {
-    const acts = [mk({ distance: 100000 })]; // 100km
-    expect(lifetimeLog(acts).milestoneText).toBeNull();
+  it('里程碑文案：未突破 2000km 时显示"继续冲刺"', () => {
+    const acts = [mk({ distance: 600000 })]; // 600km
+    expect(lifetimeLog(acts).milestoneText).toBe('累计 600 km，继续冲刺');
   });
-  it('里程碑文案：跨过阈值取最大已达成值', () => {
-    const acts = [mk({ distance: 600000 })]; // 600km，跨过 500 未到 1000
-    expect(lifetimeLog(acts).milestoneText).toBe('已累计跑过 500km');
+  it('里程碑文案：突破 2000km 后显示"已突破里程碑"', () => {
+    const acts = [mk({ distance: 2500000 })]; // 2500km
+    expect(lifetimeLog(acts).milestoneText).toBe('已突破 2000 km 里程碑');
   });
-  it('空数组 → 全 0，milestoneText 为 null', () => {
+  it('峰值年份文案：有历年数据时点名峰值年', () => {
+    const acts = [mk({ distance: 5000, start_date_local: '2024-01-01 08:00:00' })];
+    expect(lifetimeLog(acts).peakYearText).toBe('2024 是你的跑量峰值年');
+  });
+  it('峰值年份文案：无数据时显示默认文案', () => {
+    expect(lifetimeLog([]).peakYearText).toBe('继续积累你的年度峰值');
+  });
+  it('空数组 → 全 0，peakYear 为 null', () => {
     const result = lifetimeLog([]);
-    expect(result.totalKm).toBe(0);
-    expect(result.totalRuns).toBe(0);
-    expect(result.milestoneText).toBeNull();
+    expect(result.distanceKm).toBe(0);
+    expect(result.count).toBe(0);
+    expect(result.peakYear).toBeNull();
+  });
+});
+
+describe('fastestSplitWindow', () => {
+  it('单窗口(windowSize=1)取任意一次跑步里最快单公里', () => {
+    const acts = [
+      mk({
+        run_id: 1,
+        split_paces: [
+          { km: 1, pace_seconds: 300 },
+          { km: 2, pace_seconds: 280 },
+          { km: 3, pace_seconds: 320 },
+        ],
+      }),
+    ];
+    const result = fastestSplitWindow(acts, 1);
+    expect(result?.seconds).toBe(280);
+    expect(result?.activity.run_id).toBe(1);
+  });
+  it('多公里窗口(windowSize=2)取连续2公里配速总和最小的窗口', () => {
+    const acts = [
+      mk({
+        split_paces: [
+          { km: 1, pace_seconds: 300 },
+          { km: 2, pace_seconds: 280 },
+          { km: 3, pace_seconds: 290 },
+        ],
+      }),
+    ];
+    // 窗口1: km1+km2=580; 窗口2: km2+km3=570 → 更快
+    expect(fastestSplitWindow(acts, 2)?.seconds).toBe(570);
+  });
+  it('跨多次活动取全局最快', () => {
+    const acts = [
+      mk({
+        run_id: 1,
+        split_paces: [{ km: 1, pace_seconds: 300 }],
+      }),
+      mk({
+        run_id: 2,
+        split_paces: [{ km: 1, pace_seconds: 250 }],
+      }),
+    ];
+    const result = fastestSplitWindow(acts, 1);
+    expect(result?.seconds).toBe(250);
+    expect(result?.activity.run_id).toBe(2);
+  });
+  it('split_paces 长度不足窗口大小时跳过该活动', () => {
+    const acts = [mk({ split_paces: [{ km: 1, pace_seconds: 300 }] })];
+    expect(fastestSplitWindow(acts, 5)).toBeNull();
+  });
+  it('无 split_paces 或空数组 → null', () => {
+    expect(fastestSplitWindow([mk({ split_paces: null })], 1)).toBeNull();
+    expect(fastestSplitWindow([], 1)).toBeNull();
+  });
+  it('排除非 Run 类型', () => {
+    const acts = [
+      mk({ type: 'cycling', split_paces: [{ km: 1, pace_seconds: 100 }] }),
+    ];
+    expect(fastestSplitWindow(acts, 1)).toBeNull();
+  });
+});
+
+describe('matchingRaceDistance', () => {
+  it('非对称容差: 下限0.985/上限1.05', () => {
+    const target = 21097.5; // 半马
+    const acts = [
+      mk({
+        run_id: 1,
+        distance: target * 0.985, // 恰好下限，应命中
+        moving_time: '1:50:00',
+      }),
+    ];
+    expect(matchingRaceDistance(acts, target)?.activity.run_id).toBe(1);
+  });
+  it('低于下限不命中', () => {
+    const target = 21097.5;
+    const acts = [mk({ distance: target * 0.98 })];
+    expect(matchingRaceDistance(acts, target)).toBeNull();
+  });
+  it('高于上限不命中', () => {
+    const target = 21097.5;
+    const acts = [mk({ distance: target * 1.06 })];
+    expect(matchingRaceDistance(acts, target)).toBeNull();
+  });
+  it('多条命中时取用时最短的一条', () => {
+    const target = 21097.5;
+    const acts = [
+      mk({ run_id: 1, distance: target, moving_time: '2:00:00' }),
+      mk({ run_id: 2, distance: target, moving_time: '1:50:00' }),
+    ];
+    expect(matchingRaceDistance(acts, target)?.activity.run_id).toBe(2);
+  });
+});
+
+describe('trainingLogPersonalRecords', () => {
+  it('产出 1k/5k/10k(滑动窗口)+半马/全马(容差匹配) 5 档', () => {
+    const acts = [
+      mk({
+        run_id: 1,
+        split_paces: Array.from({ length: 10 }, (_, i) => ({
+          km: i + 1,
+          pace_seconds: 300,
+        })),
+      }),
+      mk({ run_id: 2, distance: 21097.5, moving_time: '1:50:00' }),
+      mk({ run_id: 3, distance: 42195, moving_time: '3:50:00' }),
+    ];
+    const result = trainingLogPersonalRecords(acts);
+    expect(result.map((r) => r.key)).toEqual([
+      '1k',
+      '5k',
+      '10k',
+      'half',
+      'full',
+    ]);
+  });
+  it('数据不足时该档缺省，不报错', () => {
+    const result = trainingLogPersonalRecords([mk({ split_paces: null })]);
+    expect(result).toEqual([]);
   });
 });
