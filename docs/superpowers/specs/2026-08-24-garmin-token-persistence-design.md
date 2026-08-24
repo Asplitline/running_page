@@ -62,14 +62,17 @@
 1. job 取得 concurrency 锁后，显式 checkout 最新 `master`，而不是事件创建时的旧 SHA。
 2. 安装固定版本并校验 checksum 的 SOPS。
 3. 创建仅 runner 当前用户可访问的临时 tokenstore 目录。
-4. 使用官方 `actions/create-github-app-token`（固定完整 SHA）取得单仓库、短期 App token，并从 GitHub Contents API 读取当前密文及其 blob SHA。如果密文存在，使用 `SOPS_AGE_KEY` 解密；否则从 `GARMIN_SECRET_STRING_CN` 创建首次 tokenstore。
+4. 使用 job 的只读 `GITHUB_TOKEN` 从 GitHub Contents API 读取当前密文及其 blob SHA。如果密文存在，使用 `SOPS_AGE_KEY` 解密；否则从 `GARMIN_SECRET_STRING_CN` 创建首次 tokenstore。
 5. 验证 tokenstore，记录同步前明文摘要，并执行 Garmin 同步。
 6. 同步成功时先在本地创建“活动数据”提交，但暂不 push；`dry_run` 跳过该提交。
-7. 使用单个 `if: ${{ always() }}` 步骤完成 token 状态事务：验证明文、判断 `ciphertext_missing || semantic_digest_changed`、使用 `--filename-override .github/state/garmin-cn-token.sops.json` 加密、反向解密并校验语义摘要和 SOPS MAC，然后使用 App token 通过 Contents API 带原 blob SHA 更新远端文件。
-8. 同步成功且非 `dry_run` 时，fetch 最新 master，将本地活动数据提交 rebase 到刚产生的 token 状态提交之上，再使用 App token push。
-9. 只有同步和 token 持久化都成功时才发布 Pages。
+7. 同步结束后，以 `if: ${{ always() }}` 调用固定完整 SHA 的官方 `actions/create-github-app-token`，此时才签发单仓库短期 App token。
+8. 紧接着使用单个 `if: ${{ always() }}` 步骤完成 token 状态事务：验证明文、判断 `ciphertext_missing || semantic_digest_changed`、使用 `--filename-override .github/state/garmin-cn-token.sops.json` 加密、反向解密并校验语义摘要和 SOPS MAC，然后使用刚签发的 App token 通过 Contents API 带原 blob SHA 更新远端文件。遇到 401 只允许重新签发一次并重试同一 CAS，不重试其他错误。
+9. 同步成功且非 `dry_run` 时，再次即时签发 App token，fetch 最新 master，将本地活动数据提交 rebase 到刚产生的 token 状态提交之上并 push。
+10. 只有同步和 token 持久化都成功时才发布 Pages。
 
 工作流增加固定 concurrency group，且不取消正在运行的任务，防止两个任务同时消费并轮换同一个 refresh token。Contents API 更新使用原密文 blob SHA 作为 CAS：无关远端提交不阻塞更新；密文本身被其他写入者修改时返回冲突，当前任务不得覆盖，并明确报警。所有 token 验证、加密、round-trip 校验和 CAS 上传必须位于同一个 `always()` 状态事务中，避免同步失败后某个默认 `success()` 步骤被跳过。
+
+GitHub App 安装 token 约一小时有效，因此任何写 token 都不得在长时间 Garmin 同步前预生成。状态 CAS 与最终数据 push 各自在使用前即时签发；这样首次全量同步或异常卡顿超过一小时后，失败路径仍能取得新写 token 保存已轮换的 Garmin token。
 
 `dry_run` 只跳过活动数据 commit/push；认证可能轮换 token，因此 token 状态事务仍必须执行。
 
@@ -135,6 +138,7 @@ GarminClient.from_tokenstore()
 - 正常刷新后密文发生变化，下一次运行能从新密文继续同步。
 - 首次 bootstrap 未发生刷新时仍创建密文。
 - 模拟刷新后业务失败，完整 `always()` 状态事务仍执行并远端更新成功，最终 job 保持失败。
+- 模拟同步超过一小时且早期凭据已过期，失败路径会即时签发新 App token并成功 CAS 保存状态。
 - token 未变化时不产生无意义提交。
 - 不同 JSON 键顺序、缩进或尾换行但 token 值相同时，语义摘要一致且不产生提交；SOPS round-trip 也按语义摘要校验。
 - `dry_run` 不提交活动数据，但仍持久化轮换后的 token。
