@@ -72,6 +72,14 @@
 
 工作流增加固定 concurrency group，且不取消正在运行的任务，防止两个任务同时消费并轮换同一个 refresh token。Contents API 更新使用原密文 blob SHA 作为 CAS：无关远端提交不阻塞更新；密文本身被其他写入者修改时返回冲突，当前任务不得覆盖，并明确报警。所有 token 验证、加密、round-trip 校验和 CAS 上传必须位于同一个 `always()` 状态事务中，避免同步失败后某个默认 `success()` 步骤被跳过。
 
+App token 产生的提交会正常触发 Actions，不能依赖 `GITHUB_TOKEN` 的递归抑制。工作流采用三层自触发防护：
+
+- `on.push.paths` 从 `backend/**` 收窄到 `backend/**/*.py`、依赖清单等真正的同步源码，排除 `backend/data.db`、GPX、activities JSON、SOPS state 等生成物。
+- token 状态和活动数据提交消息都包含 `[skip ci]`；活动数据 commit 使用明确的生成物 allowlist，不再使用 `git add .`。
+- `sync` job 拒绝 `RUNNING_PAGE_APP_BOT_ACTOR` 仓库变量指定的 `<app-slug>[bot]` actor；迁移时必须配置并验证该值。
+
+因此 App 的 state/data 提交不会进入有效同步，而普通用户对受信任同步源码的 push 仍会触发。
+
 GitHub App 安装 token 约一小时有效，因此任何写 token 都不得在长时间 Garmin 同步前预生成。状态 CAS 与最终数据 push 各自在使用前即时签发；这样首次全量同步或异常卡顿超过一小时后，失败路径仍能取得新写 token 保存已轮换的 Garmin token。
 
 `dry_run` 只跳过活动数据 commit/push；认证可能轮换 token，因此 token 状态事务仍必须执行。
@@ -145,6 +153,8 @@ GarminClient.from_tokenstore()
 - 排队任务从最新 master 读取状态，不使用事件旧 SHA。
 - 无关 push 不阻塞 Contents API 更新；state blob CAS 冲突不会覆盖远端。
 - 在实际启用 required PR/CODEOWNERS 的 ruleset 下，普通 `GITHUB_TOKEN` 无法直推，而被列为 bypass actor 的最小权限 GitHub App 能完成 state PUT 和数据 push。
+- App actor 的 state/data push 不启动有效二次同步；普通用户修改 `backend/**/*.py`、`pyproject.toml` 或 `uv.lock` 仍触发同步。
+- 活动数据提交只包含 allowlist 中的生成物，并带 `[skip ci]`；测试故意制造未预期源码修改时提交步骤必须失败。
 - SOPS filename rule、加密/解密 round-trip、MAC、错误或缺失 age key均被验证。
 - 自动扫描 git diff、index 和提交内容，确保明文 tokenstore 从未进入仓库。
 
@@ -154,7 +164,7 @@ GarminClient.from_tokenstore()
 
 1. 本地生成 age key pair。
 2. 将私钥存入 `garmin-sync` Environment Secret `SOPS_AGE_KEY`，公钥写入 `.sops.yaml`。
-3. 创建只安装到本仓库且只有 Contents 读写权限的 GitHub App，把 App 加入 master ruleset bypass，并将 App ID/私钥存入 `garmin-sync` Environment。
+3. 创建只安装到本仓库且只有 Contents 读写权限的 GitHub App，把 App 加入 master ruleset bypass，将 App ID/私钥存入 `garmin-sync` Environment，并把实际 `<app-slug>[bot]` 写入仓库变量 `RUNNING_PAGE_APP_BOT_ACTOR`。
 4. 保留现有 `GARMIN_SECRET_STRING_CN`，首次 CI 使用它生成并 CAS 上传密文状态。
 5. 验证连续两次同步成功后，删除旧 `GARMIN_SECRET_STRING_CN`。
 
