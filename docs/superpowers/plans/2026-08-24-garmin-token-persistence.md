@@ -333,6 +333,7 @@ Parse YAML with PyYAML and assert:
 - SOPS is 3.13.3 with SHA-256 `e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b`.
 - `actions/create-github-app-token` is pinned to `fee1f7d63c2ff003460e3d139729b119787bc349` and generated after sync with `always()`.
 - state persistence uses the explicit first-attempt/re-sign/retry/final-gate graph below, and final data push uses a separately generated App token.
+- unchanged semantic token state outputs `needs_persist=false` and performs no SOPS encryption, App-token signing, PUT, or retry.
 - dry-run skips only the generated-data commit/push.
 - generated-data staging uses `GPX_OUT/**`, `backend/data.db`, `imported.json`, `frontend/src/static/activities.json`, and optional `frontend/src/static/daily_metrics.json`; it never uses `git add .` and does not include `assets`.
 - `SAVE_DATA_IN_GITHUB_CACHE=true` retains the existing skip-commit/push behavior.
@@ -377,14 +378,16 @@ Set `environment: garmin-sync`. Install SOPS 3.13.3 from its official release an
 
 Implement this exact state step graph after sync:
 
-1. `create-state-app-token` uses `if: ${{ always() }}`.
-2. `prepare-state-ciphertext` uses `if: ${{ always() }}` and performs validation, semantic-change/bootstrap decision, SOPS encryption, MAC/round-trip verification, and writes one immutable ciphertext file plus the original blob SHA. It does not call PUT.
-3. `persist-state-first` uses `if: ${{ always() }}` and `continue-on-error: true`; it calls only `github_state put` with that ciphertext/SHA and publishes `failure_kind`.
-4. `reissue-state-app-token` runs only when the first outcome is failure and `failure_kind == 'auth'`.
+1. `prepare-state-ciphertext` uses `if: ${{ always() }}` and first validates the tokenstore and computes its semantic digest. It outputs exactly one of `needs_persist=true` for bootstrap/change or `needs_persist=false` for unchanged. Only the `true` path performs SOPS encryption, MAC/round-trip verification, and writes one immutable ciphertext file plus the original blob SHA; the `false` path does not invoke SOPS encryption.
+2. `create-state-app-token` runs only with `if: ${{ always() && steps.prepare_state.outcome == 'success' && steps.prepare_state.outputs.needs_persist == 'true' }}`.
+3. `persist-state-first` uses the same `needs_persist == 'true'` guard and `continue-on-error: true`; it calls only `github_state put` with that ciphertext/SHA and publishes `failure_kind`.
+4. `reissue-state-app-token` requires `needs_persist == 'true'`, first PUT outcome failure, and `failure_kind == 'auth'`.
 5. `persist-state-retry` runs only after reissue succeeds, reusing the exact same ciphertext bytes and blob SHA. It also uses `continue-on-error: true` so the gate always runs.
-6. `state-persistence-gate` uses `if: ${{ always() }}` and succeeds only when the first PUT succeeded/no-op, or the first failure was auth and the retry succeeded. First-round conflict/other failure, reissue failure, and retry failure all exit nonzero. The pre-existing sync step failure remains a job failure even if this gate succeeds.
+6. `state-persistence-gate` uses `if: ${{ always() }}`. It treats `prepare outcome == success && needs_persist == false` as a successful no-op. For `needs_persist == true`, it succeeds only when the first PUT succeeded, or the first failure was auth and the retry succeeded. A failed prepare, missing/invalid `needs_persist` output, first-round conflict/other failure, reissue failure, and retry failure all exit nonzero. The pre-existing sync step failure remains a job failure even if this gate succeeds.
 
 Because the gate restores every swallowed failure, subsequent data push steps use `if: ${{ success() && steps.data_commit.outputs.created == 'true' }}` and Pages cannot run after a sync/state failure.
+
+Static tests must assert that the unchanged path neither invokes SOPS encryption nor runs either App-token Action, PUT attempt, or retry.
 
 For generated data, only run when `SAVE_DATA_IN_GITHUB_CACHE != true` and `dry_run != true`. Stage explicitly:
 
