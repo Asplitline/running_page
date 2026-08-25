@@ -71,8 +71,10 @@ def summarize(path):
         return f"[token 观测] 已记录 {len(rotations)} 次轮换(时间解析失败)"
 
     lines = [
-        f"[token 观测] 当前 refresh token 已使用 {age_days} 天,"
-        f"历史累计轮换 {len(rotations)} 次"
+        (
+            f"[token 观测] 当前 refresh token 已使用 {age_days} 天,"
+            f"历史累计轮换 {len(rotations)} 次"
+        )
     ]
     if age_days >= 25:
         lines.append(
