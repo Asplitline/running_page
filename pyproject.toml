@@ -39,7 +39,7 @@ dependencies = [
   "svglib>=1.5.1",
   "cairosvg>=2.7.1",
   "certifi==2025.1.31",
-  "garminconnect>=0.3.7",
+  "garminconnect>=0.3.7,<0.4",
 ]
 requires-python = ">=3.12"
 readme = "README.md"
@@ -47,7 +47,7 @@ license = { text = "MIT" }
 
 [dependency-groups]
 # CI 用的 lint/format 工具,纳入 uv.lock 统一锁版本,避免现装最新版行为漂移
-dev = ["black", "ruff"]
+dev = ["black", "ruff", "pytest"]
 
 [build-system]
 requires = ["pdm-backend"]
@@ -72,3 +72,6 @@ ignore = [
     "C408",   # 允许 dict() 调用
     "FURB162", # 时区替换写法
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

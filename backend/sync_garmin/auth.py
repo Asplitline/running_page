@@ -7,6 +7,8 @@
 CN 区由 is_cn 开关控制,库内部切 garmin.cn,不再需要旧代码那种 ssl_verify=False 脏招。
 """
 
+from pathlib import Path
+
 from garminconnect import Garmin
 from garminconnect.exceptions import GarminConnectAuthenticationError
 
@@ -18,10 +20,18 @@ DOWNLOAD_FORMATS = {
 # 认证失败时的可读指引,替代满屏底层 traceback
 _AUTH_HINT = (
     "佳明认证失败(401)。可能原因:\n"
-    "  1. token 已失效 —— 重新生成: uv run python -m backend.sync_garmin.make_secret <邮箱> <密码> --is-cn,"
+    "  1. refresh token 已失效(约 30 天有效期)—— 重新生成: "
+    "uv run python -m backend.sync_garmin.make_secret <邮箱> <密码> --is-cn,"
     "并更新 GitHub Secret GARMIN_SECRET_STRING_CN\n"
     "  2. 依赖版本漂移 —— CI 应走 uv sync --frozen(锁定 curl_cffi 等),避免新版 TLS 指纹触发 CN 风控\n"
     "  3. 异地 IP 被风控 —— GitHub runner 境外共享 IP 常被佳明 CN 拦截"
+)
+
+# 无 token 文件又无账密时的指引:两条路都断了,必须人工介入
+_NO_CREDENTIAL_HINT = (
+    "无可用凭据:token 文件不存在且未提供账号密码。\n"
+    "  - CI 场景:检查 GARMIN_SECRET_STRING_CN 是否配置(用于首次 bootstrap 写出 token 文件)\n"
+    "  - 本地场景:先跑 make_secret 生成 token,或传入 --email/--password"
 )
 
 
@@ -32,9 +42,12 @@ class GarminAuthError(RuntimeError):
 class GarminClient:
     """python-garminconnect 的薄封装,只暴露同步所需的能力。"""
 
-    def __init__(self, client: Garmin, is_only_running=False):
+    def __init__(self, client: Garmin, is_only_running=False, tokenstore_path=None):
         self._client = client
         self.is_only_running = is_only_running
+        # 文件模式下记住路径,供 persist_tokenstore 做退出前 checkpoint;
+        # 串模式为 None,checkpoint 静默跳过。
+        self._tokenstore_path = tokenstore_path
 
     @classmethod
     def from_token(cls, token, is_cn=False, is_only_running=False):
@@ -46,6 +59,55 @@ class GarminClient:
         client = Garmin(is_cn=is_cn)
         client.client.loads(token)
         return cls(client, is_only_running)
+
+    @classmethod
+    def from_tokenstore(
+        cls,
+        path,
+        is_cn=False,
+        is_only_running=False,
+        email=None,
+        password=None,
+    ):
+        """用 token 文件构造 —— 让库自带的降级链生效。
+
+        走 login(tokenstore=路径) 而非 loads(串), 因为库只在 _tokenstore_path
+        非空时才回写磁盘。这一条路径同时带来三件事:
+          1. token 快过期(exp-900s)时主动刷新, 并把轮换出的新 refresh token 落盘
+          2. 文件缺失/损坏时, 若有账密则自动降级登录, 登录后回写
+          3. token 能加载但被 API 拒(stale cache)时, 清状态后账密重登
+
+        没有账密且文件不可用时直接报错, 不静默继续 —— 否则会退化成
+        库 issue #369 描述的「坏文件短路策略链」。
+        """
+        path = Path(path)
+        has_credentials = bool(email and password)
+        if not path.exists() and not has_credentials:
+            raise GarminAuthError(_NO_CREDENTIAL_HINT)
+
+        client = Garmin(
+            email=email or None,
+            password=password or None,
+            is_cn=is_cn,
+        )
+        try:
+            client.login(tokenstore=str(path))
+        except GarminConnectAuthenticationError as e:
+            raise GarminAuthError(_AUTH_HINT) from e
+        except Exception as e:
+            raise GarminAuthError(f"{_AUTH_HINT}\n\n底层错误: {e}") from e
+        return cls(client, is_only_running, tokenstore_path=path)
+
+    def persist_tokenstore(self):
+        """把内存里的最新 token 落盘 —— 退出前的 checkpoint。
+
+        库只在「快过期时主动刷新」这一条路径上回写; 同步过程中途轮换出的
+        新 refresh token 不一定落盘。退出前补一次, 保证下次运行拿到最新串。
+        串模式(无路径)静默跳过。
+        """
+        if not self._tokenstore_path:
+            return
+        self._client.client.dump(str(self._tokenstore_path))
 
     @classmethod
     def login_with_credentials(
