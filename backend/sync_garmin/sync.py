@@ -5,8 +5,12 @@
 
 用法:
   python -m backend.sync_garmin.sync <secret> [--is-cn] [--only-run]
+  python -m backend.sync_garmin.sync --tokenstore <path> [--is-cn] [--only-run]
 
-secret 是 make_secret 产出的 token 串。
+secret 是 make_secret 产出的 token 串(一次性,轮换值不落盘)。
+--tokenstore 走文件模式,能持久化轮换后的 refresh token,CI 应用这条。
+账密可选(--email/--password 或 GARMIN_EMAIL/GARMIN_PASSWORD),
+仅在 token 文件不可用时作为降级登录通道。
 """
 
 import argparse
@@ -29,14 +33,39 @@ def get_downloaded_ids(folder):
     return [i.split(".")[0] for i in os.listdir(folder) if not i.startswith(".")]
 
 
-def run_sync(secret, is_cn, is_only_running):
+def run_sync(
+    secret, is_cn, is_only_running, tokenstore=None, email=None, password=None
+):
     if not os.path.exists(GPX_FOLDER):
         os.makedirs(GPX_FOLDER)
 
     downloaded_ids = get_downloaded_ids(GPX_FOLDER)
-    client = GarminClient.from_token(
-        secret, is_cn=is_cn, is_only_running=is_only_running
-    )
+    if tokenstore:
+        client = GarminClient.from_tokenstore(
+            tokenstore,
+            is_cn=is_cn,
+            is_only_running=is_only_running,
+            email=email,
+            password=password,
+        )
+    else:
+        client = GarminClient.from_token(
+            secret, is_cn=is_cn, is_only_running=is_only_running
+        )
+
+    try:
+        _sync_activities(client, downloaded_ids)
+    finally:
+        # 无论业务成败都 checkpoint: 同步途中可能轮换出新 refresh token,
+        # 丢了就得等下次 401 才发现。checkpoint 自身失败只告警, 不掩盖业务异常。
+        try:
+            client.persist_tokenstore()
+        except Exception as e:
+            print(f"  token checkpoint 失败(下次运行可能需要重新登录): {e}")
+
+
+def _sync_activities(client, downloaded_ids):
+    """活动下载 + 落库 + 每日身体状态。从 run_sync 拆出,便于 finally 包裹。"""
     _, id2title = download_new_activities(client, downloaded_ids, GPX_FOLDER, "gpx")
 
     make_activities_file(
@@ -60,6 +89,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("secret_string", nargs="?", help="token from make_secret")
     parser.add_argument(
+        "--tokenstore",
+        dest="tokenstore",
+        help="token 文件路径。走此模式才能持久化轮换后的 refresh token",
+    )
+    parser.add_argument("--email", dest="email", help="账号邮箱,token 失效时降级登录用")
+    parser.add_argument(
+        "--password", dest="password", help="账号密码,token 失效时降级登录用"
+    )
+    parser.add_argument(
         "--is-cn", dest="is_cn", action="store_true", help="if garmin account is cn"
     )
     parser.add_argument(
@@ -69,11 +107,18 @@ def main():
         help="if is only for running",
     )
     options = parser.parse_args()
-    if not options.secret_string:
-        print("Missing secret_string argument")
+    if not options.secret_string and not options.tokenstore:
+        print("需要提供 secret_string 或 --tokenstore")
         sys.exit(1)
     try:
-        run_sync(options.secret_string, options.is_cn, options.only_run)
+        run_sync(
+            options.secret_string,
+            options.is_cn,
+            options.only_run,
+            tokenstore=options.tokenstore,
+            email=options.email or os.getenv("GARMIN_EMAIL"),
+            password=options.password or os.getenv("GARMIN_PASSWORD"),
+        )
     except GarminAuthError as e:
         print(f"\n{e}")
         sys.exit(1)
