@@ -83,43 +83,94 @@ This imports all files from `GPX_OUT/` and regenerates `src/static/activities.js
 
 ## Garmin-CN Workflow
 
-### 1. Generate Garmin secret string
+### 1. Generate the initial token
 
 ```bash
-python3 run_page/get_garmin_secret.py <email> <password> --is-cn
+uv run python -m backend.sync_garmin.make_secret <email> <password> --is-cn
 ```
 
-This prints a `secret_string`.
-Save it. This is what you pass to `garmin_sync.py` or store in GitHub Secrets.
+This prints a JSON token string containing `di_token`, `di_refresh_token`, and
+`di_client_id`. Store it in the GitHub Secret `GARMIN_SECRET_STRING_CN`.
+
+Treat this string like a password: the refresh token grants persistent account
+access.
 
 ### 2. Sync Garmin-CN data locally
 
-All activities:
+Recommended — file mode, which persists rotated tokens:
 
 ```bash
-python3 run_page/garmin_sync.py "<secret_string>" --is-cn
+uv run python -m backend.sync_garmin.sync \
+  --tokenstore .garmin_token/garmin_tokens.json --is-cn
 ```
 
-Running only:
+Bootstrap the file once from the string you generated in step 1:
 
 ```bash
-python3 run_page/garmin_sync.py "<secret_string>" --is-cn --only-run
+mkdir -p .garmin_token
+printf '%s' '<token_string>' > .garmin_token/garmin_tokens.json
+chmod 600 .garmin_token/garmin_tokens.json
+```
+
+Running activities only — add `--only-run`.
+
+String mode still works but does not persist rotated tokens:
+
+```bash
+uv run python -m backend.sync_garmin.sync "<token_string>" --is-cn
 ```
 
 What this does:
 
-- Downloads activities from Garmin China
-- Stores files in `GPX_OUT/` by default
-- Updates `run_page/data.db`
-- Writes `src/static/activities.json`
+- Downloads activities from Garmin China into `GPX_OUT/`
+- Updates `backend/data.db`
+- Writes `frontend/src/static/activities.json` and `daily_metrics.json`
 
-### 3. Start frontend locally
+### 3. How token persistence works
+
+Garmin issues two tokens. The access token (`di_token`) lives about 4 hours; the
+refresh token (`di_refresh_token`) lives about 30 days and **rotates on every
+refresh**. Only file mode persists that rotation, because the underlying library
+writes back to disk solely when it was given a path.
+
+String mode therefore keeps replaying the original refresh token until Garmin
+stops honouring it, which surfaces as an unexplained 401 roughly a month after
+setup. File mode plus the CI cache avoids that.
+
+In CI the flow is:
+
+1. Restore `.garmin_token/` from the Actions cache
+2. If the cache is empty, bootstrap the file from `GARMIN_SECRET_STRING_CN`
+3. Sync with `--tokenstore`; the library refreshes and writes back as needed
+4. Save the cache again — unconditionally, so a failed sync still keeps the
+   refreshed token
+
+Each run logs a `[token 观测]` line reporting how long the current refresh token
+has been in use. A steadily rising number with no rotation suggests the write-back
+is not taking effect; a hard 401 near day 30 means the refresh token expired and
+must be regenerated.
+
+### 4. When the token expires
+
+Regenerate with `make_secret`, then do **both** of these:
+
+1. Update the Secret `GARMIN_SECRET_STRING_CN`
+2. Delete the `garmin_token-*` entries under **Actions → Caches**
+
+Step 2 is mandatory. The cache takes precedence over the Secret, so a stale
+cached token file would otherwise keep being restored and the new Secret would
+never be read.
+
+Optional fallback: setting the Secrets `GARMIN_EMAIL` and `GARMIN_PASSWORD` lets
+the library fall back to a credential login when the token file is unusable. Note
+that a credential login can trigger MFA, which cannot be answered in CI, so treat
+this as a convenience rather than a guarantee.
+
+### 5. Start frontend locally
 
 ```bash
 pnpm dev
 ```
-
-The frontend imports `src/static/activities.json` directly in [src/hooks/useActivities.ts](/Users/shouyong/myqz/code/2026/running_page/src/hooks/useActivities.ts:1).
 
 ## Rebuild JSON from Existing GPX Files
 

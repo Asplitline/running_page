@@ -21,8 +21,10 @@ DOWNLOAD_FORMATS = {
 _AUTH_HINT = (
     "佳明认证失败(401)。可能原因:\n"
     "  1. refresh token 已失效(约 30 天有效期)—— 重新生成: "
-    "uv run python -m backend.sync_garmin.make_secret <邮箱> <密码> --is-cn,"
-    "并更新 GitHub Secret GARMIN_SECRET_STRING_CN\n"
+    "uv run python -m backend.sync_garmin.make_secret <邮箱> <密码> --is-cn\n"
+    "     CI 修复步骤:① 更新 Secret GARMIN_SECRET_STRING_CN "
+    "② 到 Actions → Caches 删掉 garmin_token-* 缓存(否则旧 token 文件仍会被恢复,"
+    "新 Secret 不生效)\n"
     "  2. 依赖版本漂移 —— CI 应走 uv sync --frozen(锁定 curl_cffi 等),避免新版 TLS 指纹触发 CN 风控\n"
     "  3. 异地 IP 被风控 —— GitHub runner 境外共享 IP 常被佳明 CN 拦截"
 )
