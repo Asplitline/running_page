@@ -145,3 +145,19 @@ def test_login_failure_surfaces_auth_error(tmp_path, monkeypatch):
         )
     # 底层原因要透出来,便于排查
     assert "login blew up" in str(caught.value)
+
+
+def test_current_refresh_token_exposes_in_memory_value(token_file):
+    """观测模块要读到内存里轮换后的最新串,而非文件里的旧串。"""
+    client = GarminClient.from_tokenstore(token_file, is_cn=True)
+    FakeGarmin.instances[-1].client.di_refresh_token = "refresh-rotated"
+
+    assert client.current_refresh_token() == "refresh-rotated"
+
+
+def test_current_refresh_token_returns_none_when_absent(token_file):
+    """底层没有该字段时返回 None,不抛错 —— 观测是可选诊断。"""
+    client = GarminClient.from_tokenstore(token_file, is_cn=True)
+    FakeGarmin.instances[-1].client.di_refresh_token = None
+
+    assert client.current_refresh_token() is None

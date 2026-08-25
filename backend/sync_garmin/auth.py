@@ -109,6 +109,10 @@ class GarminClient:
             return
         self._client.client.dump(str(self._tokenstore_path))
 
+    def current_refresh_token(self):
+        """当前内存里的 refresh token, 供轮换观测使用。取不到返回 None。"""
+        return getattr(self._client.client, "di_refresh_token", None)
+
     @classmethod
     def login_with_credentials(
         cls, email, password, is_cn=False, prompt_mfa=None, is_only_running=False

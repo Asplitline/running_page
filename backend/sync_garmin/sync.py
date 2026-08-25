@@ -16,6 +16,7 @@ secret 是 make_secret 产出的 token 串(一次性,轮换值不落盘)。
 import argparse
 import os
 import sys
+from pathlib import Path
 
 from backend.config import DAILY_METRICS_JSON_FILE, GPX_FOLDER, JSON_FILE, SQL_FILE
 from backend.generator.db import init_db
@@ -25,6 +26,7 @@ from backend.sync_garmin.daily_metrics import (
     write_latest_daily_metrics_file,
 )
 from backend.sync_garmin.downloader import download_new_activities
+from backend.sync_garmin.token_audit import record_rotation, summarize
 from backend.utils import make_activities_file
 
 
@@ -62,6 +64,18 @@ def run_sync(
             client.persist_tokenstore()
         except Exception as e:
             print(f"  token checkpoint 失败(下次运行可能需要重新登录): {e}")
+        if tokenstore:
+            _audit_token(client, tokenstore)
+
+
+def _audit_token(client, tokenstore):
+    """记录 refresh token 轮换史并打印摘要。纯诊断, 失败不影响同步结果。"""
+    try:
+        audit_path = Path(tokenstore).with_name("garmin_token_audit.json")
+        record_rotation(audit_path, client.current_refresh_token())
+        print(summarize(audit_path))
+    except Exception as e:
+        print(f"  token 观测失败(不影响同步): {e}")
 
 
 def _sync_activities(client, downloaded_ids):
