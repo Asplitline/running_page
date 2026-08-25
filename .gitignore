@@ -36,3 +36,8 @@ frontend/node_modules
 
 # 个人跑步数据导出,不入库
 aiyuanzi-running.html
+
+# 佳明 token 文件(等价于账号密码,绝不入库)
+.garmin_token/
+garmin_tokens.json
+garmin_token_audit.json

@@ -27,6 +27,7 @@ env:
   IGNORE_RANGE: 10 # Unit meter
   SAVE_DATA_IN_GITHUB_CACHE: false # if you deploy in the vercel, check the README
   DATA_CACHE_PREFIX: 'track_data'
+  TOKEN_CACHE_PREFIX: 'garmin_token'  # token 文件跨运行存活用
   BUILD_GH_PAGES: true # If you do not need GitHub Page please set it to `false`
 
 jobs:
@@ -71,121 +72,173 @@ jobs:
             ${{ env.DATA_CACHE_PREFIX }}-${{ github.sha }}-
             ${{ env.DATA_CACHE_PREFIX }}-
 
-      # Secret 体检:只暴露体征(长度/首尾字符/能否解析 JSON),绝不打印 token 内容
-      - name: Inspect Garmin CN secret
+      # ── token 持久化(核心)───────────────────────────────────────────────
+      # 佳明 refresh token 每次刷新都会轮换(旧串可能被作废),约 30 天寿命。
+      # 走 loads(串) 时轮换值只在内存、进程退出即丢,Secret 里永远是初始串 →
+      # 30 天后必挂。改用文件模式 + Actions Cache 让轮换值跨运行存活。
+      - name: Restore Garmin token cache
+        id: token_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .garmin_token
+          # key 带 run_id 保证每次都是新 key(GitHub 不覆盖已存在的 key),
+          # 靠 restore-keys 前缀回退到最近一份。
+          key: ${{ env.TOKEN_CACHE_PREFIX }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ env.TOKEN_CACHE_PREFIX }}-
+
+      # 缓存里没有 token 文件时(首次运行 / cache 被清),用 Secret 写出一份。
+      # cache 7 天不访问会被 GitHub 回收,每日运行正常碰不到。
+      - name: Bootstrap token file from secret
         env:
           GARMIN_SECRET_STRING_CN: ${{ secrets.GARMIN_SECRET_STRING_CN }}
+        run: |
+          set -euo pipefail
+          mkdir -p .garmin_token
+          if [[ -s .garmin_token/garmin_tokens.json ]]; then
+            echo "token 文件已从缓存恢复,跳过 bootstrap"
+            exit 0
+          fi
+          if [[ -z "${GARMIN_SECRET_STRING_CN:-}" ]]; then
+            echo "::error::缓存无 token 文件,且 GARMIN_SECRET_STRING_CN 未配置,无法认证"
+            exit 1
+          fi
+          printf '%s' "$GARMIN_SECRET_STRING_CN" > .garmin_token/garmin_tokens.json
+          chmod 600 .garmin_token/garmin_tokens.json
+          echo "已用 Secret bootstrap 出 token 文件"
+
+      # token 文件体检:只暴露体征(长度/exp/能否解析 JSON),绝不打印 token 内容。
+      # 体检对象是实际参与认证的文件,而非 Secret —— 文件可能来自缓存(已轮换过)。
+      - name: Inspect Garmin token file
         run: |
           uv run python - <<'PY'
           import base64
           import json
-          import os
           from datetime import datetime, timedelta, timezone
+          from pathlib import Path
 
-          CN_TZ = timezone(timedelta(hours=8))  # 北京时间
+          CN_TZ = timezone(timedelta(hours=8))
+          TOKEN_PATH = Path(".garmin_token/garmin_tokens.json")
 
           def decode_exp(tok):
               # 解 JWT payload 段的 exp(过期时间戳),不做签名校验
               payload = tok.split(".")[1]
-              payload += "=" * (-len(payload) % 4)  # 补 base64 padding
+              payload += "=" * (-len(payload) % 4)
               return json.loads(base64.urlsafe_b64decode(payload)).get("exp")
 
           def report_access_token(tok):
-              # access token 过期是常态、不是故障:CI 走 loads(串) 加载,
-              # 库内 _refresh_session 只在从「文件」加载时才回写 tokenstore,
-              # 所以刷新后的新值留在内存、进程退出即丢,Secret 里永远是旧串。
-              # 真正决定同步成败的是下面的 refresh token。
+              # access token 约 4 小时寿命,过期是常态:文件模式下库会自动刷新并回写。
               if not tok:
-                  print("[token] access(di_token): 缺失 —— Secret 不完整,需重跑 make_secret")
+                  print("[token] access(di_token): 缺失 —— 文件不完整")
                   return
               try:
                   exp = decode_exp(tok)
               except Exception:
-                  print("[token] access(di_token): 非 JWT 格式(不影响,运行时会自动刷新)")
+                  print("[token] access(di_token): 非 JWT 格式(不影响,运行时会刷新)")
                   return
               if exp is None:
-                  print("[token] access(di_token): 无 exp 字段(不影响,运行时会自动刷新)")
+                  print("[token] access(di_token): 无 exp 字段(不影响,运行时会刷新)")
                   return
               exp_dt = datetime.fromtimestamp(exp, tz=CN_TZ)
               left = exp_dt - datetime.now(tz=CN_TZ)
               if left.total_seconds() <= 0:
                   print(
                       f"[token] access(di_token): 已过期(北京时间 {exp_dt:%Y-%m-%d %H:%M})"
-                      " —— 属正常,运行时会用 refresh token 自动换新"
+                      " —— 属正常,约 4 小时寿命,运行时会用 refresh token 换新"
                   )
               else:
                   print(
                       f"[token] access(di_token): 北京时间 {exp_dt:%Y-%m-%d %H:%M} 过期"
-                      f"(还剩 {left.days} 天 {left.seconds // 3600} 小时)"
+                      f"(还剩 {left.seconds // 3600} 小时)"
                   )
 
           def report_refresh_token(tok):
-              # refresh token 是不透明串(非 JWT),解不出有效期,只能校验存在性。
-              # 它一旦失效,_refresh_di_token 会抛 401,此时才需要重跑 make_secret。
+              # refresh token 是不透明串(非 JWT),约 30 天寿命,解不出有效期。
+              # 剩余寿命由 token_audit 模块按轮换史推算,见同步日志的「token 观测」。
               if not tok:
-                  print(
-                      "[token] refresh(di_refresh_token): 缺失 —— 无法自动刷新,"
-                      "同步必失败,需重跑 make_secret"
-                  )
+                  print("[token] refresh(di_refresh_token): 缺失 —— 无法刷新,同步必失败")
                   return
               print(
-                  f"[token] refresh(di_refresh_token): 已提供(长度={len(tok)},不透明串无有效期)"
-                  " —— 这是同步成败的关键;若下方同步报 401,说明它已失效,需重跑 make_secret"
+                  f"[token] refresh(di_refresh_token): 已提供(长度={len(tok)})"
+                  " —— 约 30 天寿命;若同步报 401 说明已失效,需重跑 make_secret"
               )
 
-          s = os.environ.get("GARMIN_SECRET_STRING_CN")
-          if s is None:
-              print("[secret] 未设置(env 里没有该变量)")
+          if not TOKEN_PATH.exists():
+              print(f"[token] 文件不存在: {TOKEN_PATH}")
               raise SystemExit(0)
 
-          print(f"[secret] 长度={len(s)}")
-          if s == "":
-              print("[secret] 为空字符串 —— GitHub Secret 未配置或值为空")
-              raise SystemExit(0)
-
-          stripped = s.strip()
-          if stripped != s:
-              print(f"[secret] 首尾有空白!strip 后长度={len(stripped)}(粘贴时可能带了空格/换行)")
-          print(f"[secret] 首字符={s[0]!r} 尾字符={s[-1]!r}")
-          if s[0] != "{" or s[-1] != "}":
-              print("[secret] 首尾不是 {} —— 不是合法 JSON 对象串,极可能是旧值/错误粘贴")
-
+          raw = TOKEN_PATH.read_text()
+          print(f"[token] 文件长度={len(raw)} 权限={oct(TOKEN_PATH.stat().st_mode)[-3:]}")
           try:
-              data = json.loads(s)
+              data = json.loads(raw)
           except json.JSONDecodeError as e:
-              print(f"[secret] JSON 解析失败: {e}(错在第 {e.pos} 个字符)")
-          else:
-              if not isinstance(data, dict):
-                  print(f"[secret] 解析出的是 {type(data).__name__} 而非对象 —— 值可能被多套了一层引号")
-              else:
-                  print(f"[secret] JSON 合法,keys={sorted(data.keys())}")
-                  want = {"di_token", "di_refresh_token", "di_client_id"}
-                  missing = want - set(data.keys())
-                  if missing:
-                      print(f"[secret] 缺少 make_secret 应有的 key: {sorted(missing)}")
-                  report_access_token(data.get("di_token"))
-                  report_refresh_token(data.get("di_refresh_token"))
+              print(f"[token] JSON 解析失败: {e}(错在第 {e.pos} 个字符)")
+              raise SystemExit(0) from None
+          if not isinstance(data, dict):
+              print(f"[token] 解析出 {type(data).__name__} 而非对象 —— 值可能被多套了一层引号")
+              raise SystemExit(0)
+
+          print(f"[token] JSON 合法,keys={sorted(data.keys())}")
+          missing = {"di_token", "di_refresh_token", "di_client_id"} - set(data)
+          if missing:
+              print(f"[token] 缺少必需 key: {sorted(missing)}")
+          report_access_token(data.get("di_token"))
+          report_refresh_token(data.get("di_refresh_token"))
           PY
 
-      # Garmin 中国区同步。生成 secret: python -m backend.sync_garmin.make_secret <email> <password> --is-cn
-      # secret 是 JSON 串,必须走 env 注入并加引号,否则会被 shell 按空格/花括号拆断
+      # Garmin 中国区同步。首次 token 生成: python -m backend.sync_garmin.make_secret <email> <password> --is-cn
+      # 走 --tokenstore 文件模式:库会在 token 快过期时自动刷新并回写文件,
+      # 轮换出的新 refresh token 由后续 cache 步骤带到下次运行。
       - name: Run sync Garmin CN script
         env:
-          GARMIN_SECRET_STRING_CN: ${{ secrets.GARMIN_SECRET_STRING_CN }}
+          # 账密可选:token 文件损坏/被 API 拒时作为降级通道。
+          # 注意 CI 里账密登录可能触发 MFA 而卡死,所以它是应急而非常规路径。
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
           # 跳过 Nominatim 反向地理编码:CN 活动逐条查会被 OSM 限流/掐连接而卡死,
           # 且 runner 共享 IP 常被封。地名对可视化非必需,轨迹靠 GPX 渲染。
           SKIP_REVERSE_GEOCODE: 'true'
         run: |
-          uv run python -m backend.sync_garmin.sync "$GARMIN_SECRET_STRING_CN" --is-cn
+          uv run python -m backend.sync_garmin.sync \
+            --tokenstore .garmin_token/garmin_tokens.json --is-cn
+
+      # 无条件回存:即使同步失败,刷新出的新 token 也必须留下 ——
+      # 否则下次运行还是拿旧串,同一个错误会一直重复。
+      - name: Save Garmin token cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .garmin_token
+          key: ${{ env.TOKEN_CACHE_PREFIX }}-${{ github.run_id }}
 
       - name: Push new runs
         if: env.SAVE_DATA_IN_GITHUB_CACHE != 'true' && github.event.inputs.dry_run != 'true'
         run: |
+          set -euo pipefail
           git config --local user.email 'action@github.com'
           git config --local user.name 'GitHub Action'
-          git add .
-          git commit -m 'update new runs' || echo 'nothing to commit'
-          git push || echo 'nothing to push'
+          # 显式白名单而非 git add . —— token 文件绝不能进仓库。
+          # .gitignore 已排除 .garmin_token/,这里是第二层保险。
+          # 逐个 add:daily_metrics.json 等产物可能不存在,不能让整条 add 失败。
+          for path in GPX_OUT backend/data.db imported.json \
+                      frontend/src/static/activities.json \
+                      frontend/src/static/daily_metrics.json \
+                      src/static/activities.json; do
+            if [[ -e "$path" ]]; then
+              git add -A -- "$path"
+            fi
+          done
+          if git diff --cached --quiet; then
+            echo 'nothing to commit'
+            exit 0
+          fi
+          # 提交前核验:暂存区不得含任何 token 文件
+          if git diff --cached --name-only | grep -qE 'garmin_token|\.garmin_token'; then
+            echo "::error::暂存区检出 token 文件,拒绝提交"
+            exit 1
+          fi
+          git commit -m 'update new runs'
+          git push
 
       - name: Set Output
         id: set_output
