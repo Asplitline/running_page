@@ -13,6 +13,7 @@ import { hrZoneOf, estimateHrMax, type HrZone } from '@/design/tokens';
 
 // 日视图卡片 — 对齐老前端 ActivityList 日视图的六项指标：
 // 配速/用时/最快配速/平均心率/峰值心率/步频，附逐公里分段表格(表格+分页，对齐老前端)。
+// 卡片在日视图里作为栅格单元使用，宽度由外层栅格决定，六项指标固定 3 列两行。
 
 const OWNER_AGE = 29; // 参考 RunDetail.tsx 的站点 owner 年龄约定
 
@@ -94,7 +95,11 @@ export const DayLogCard = ({ activity }: Props) => {
             <Tooltip
               content={
                 <span className="whitespace-pre-line font-mono text-[11px]">
-                  {zoneTooltipText(activity.average_heartrate, hrMax, avgHrZone)}
+                  {zoneTooltipText(
+                    activity.average_heartrate,
+                    hrMax,
+                    avgHrZone
+                  )}
                 </span>
               }
             >
@@ -115,7 +120,7 @@ export const DayLogCard = ({ activity }: Props) => {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-6">
+      <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-3">
         <Metric
           label="配速"
           value={paceFromSpeed(activity.average_speed)}

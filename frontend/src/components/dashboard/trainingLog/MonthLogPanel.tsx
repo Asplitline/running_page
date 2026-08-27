@@ -2,7 +2,8 @@ import type { MonthLog } from '@/lib/trainingLog';
 import { formatPace, formatClock } from '@/lib/format';
 import { BarChart } from '@/components/charts/BarChart';
 
-// 月视图 — 最近 N 个月，每月一张卡片：柱状图(当月每日里程) + 四项指标。
+// 月视图 — 最近 N 个月，每月一张卡片：柱状图 (当月每日里程) + 四项指标。
+// 各月等宽：面积代表重要性，按「最新」给首卡双倍宽会让跑量少的月份显得更重要。
 
 interface Props {
   months: MonthLog[];
@@ -16,13 +17,11 @@ export const MonthLogPanel = ({ months }: Props) => {
   const ordered = [...months].reverse(); // 最新月在前
 
   return (
-    <div className="grid gap-4 lg:grid-cols-12">
-      {ordered.map((m, i) => (
+    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+      {ordered.map((m) => (
         <div
           key={m.month}
-          className={`rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-5 ${
-            i === 0 ? 'lg:col-span-8' : 'lg:col-span-4'
-          }`}
+          className="min-w-0 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-5"
         >
           <div className="flex items-baseline justify-between">
             <p className="eyebrow">{m.month}</p>

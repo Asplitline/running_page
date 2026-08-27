@@ -1,107 +1,107 @@
+import { useMemo } from 'react';
+import {
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import type { SplitHeartRate } from '@/data/types';
-import { Tooltip } from '@/components/ui/Tooltip';
 import { hrZoneOf } from '@/design/tokens';
+import { chartColors, ChartEmpty, ChartTooltipBox } from './theme';
+import type { ChartTooltipProps } from './theme';
 
-// 逐公里心率折线 (SVG)。按 Z1-Z5 分区着色：每点用其心率所属分区色，
-// 线段用相邻两点分区色渐变，一眼看出强度分布。
+// 逐公里心率折线。按 Z1-Z5 分区着色：折线用沿 X 轴的渐变，
+// 各公里位置取该点心率所属分区色，一眼看出强度分布。
 
 interface Props {
   splits: SplitHeartRate[];
   hrMax: number;
 }
 
-const W = 800;
-const H = 120;
-const PAD = 8;
-const NEUTRAL = 'var(--color-ink-3)';
+const NEUTRAL = '#94a099';
 
 const zoneColor = (hr: number, hrMax: number): string =>
   hrZoneOf(hr, hrMax)?.color ?? NEUTRAL;
+
 const zoneLabel = (hr: number, hrMax: number): string => {
   const z = hrZoneOf(hr, hrMax);
   return z ? `Z${z.zone} ${z.label}` : '';
 };
 
 export const SplitHrChart = ({ splits, hrMax }: Props) => {
-  if (!splits?.length) {
-    return <p className="text-sm text-[var(--color-ink-3)]">无分段心率数据</p>;
-  }
+  const c = useMemo(chartColors, []);
 
-  const hrs = splits.map((s) => s.avg_hr);
-  const min = Math.min(...hrs);
-  const max = Math.max(...hrs);
-  const range = max - min || 1;
+  if (!splits?.length) return <ChartEmpty text="无分段心率数据" />;
 
-  const pts = splits.map((s, i) => {
-    const x = (i / (splits.length - 1 || 1)) * (W - PAD * 2) + PAD;
-    const y = H - PAD - ((s.avg_hr - min) / range) * (H - PAD * 2);
-    return { x, y, color: zoneColor(s.avg_hr, hrMax), ...s };
-  });
+  // 沿 X 轴的分区色渐变:每个数据点在其 X 百分比位置放一个色标
+  const stops = splits.map((s, i) => ({
+    offset: splits.length > 1 ? (i / (splits.length - 1)) * 100 : 0,
+    color: zoneColor(s.avg_hr, hrMax),
+  }));
+
+  // v3 的 dot 回调参数类型 (DotItemDotProps) 未从包根导出，用结构化类型接收
+  const renderDot = (props: {
+    cx?: number;
+    cy?: number;
+    payload?: SplitHeartRate;
+  }) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null || !payload) return <g key="empty" />;
+    return (
+      <circle
+        key={payload.km}
+        cx={cx}
+        cy={cy}
+        r={3.5}
+        fill={zoneColor(payload.avg_hr, hrMax)}
+        stroke={c.card}
+        strokeWidth={1.5}
+      />
+    );
+  };
+
+  const renderTooltip = ({
+    active,
+    payload,
+  }: ChartTooltipProps) => {
+    if (!active || !payload?.length) return null;
+    const s = payload[0].payload as SplitHeartRate;
+    return (
+      <ChartTooltipBox>
+        {s.km}km · {s.avg_hr} bpm · {zoneLabel(s.avg_hr, hrMax)}
+      </ChartTooltipBox>
+    );
+  };
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full"
-      preserveAspectRatio="none"
-    >
-      <defs>
-        {pts.slice(0, -1).map((p, i) => {
-          const next = pts[i + 1];
-          return (
-            <linearGradient
-              key={i}
-              id={`hrseg-${i}`}
-              x1={p.x}
-              y1={p.y}
-              x2={next.x}
-              y2={next.y}
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop offset="0" stopColor={p.color} />
-              <stop offset="1" stopColor={next.color} />
-            </linearGradient>
-          );
-        })}
-      </defs>
-
-      {/* 分区渐变线段 */}
-      {pts.slice(0, -1).map((p, i) => {
-        const next = pts[i + 1];
-        return (
-          <line
-            key={i}
-            x1={p.x}
-            y1={p.y}
-            x2={next.x}
-            y2={next.y}
-            stroke={`url(#hrseg-${i})`}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          />
-        );
-      })}
-
-      {/* 分区色圆点 + tooltip */}
-      {pts.map((p) => (
+    <ResponsiveContainer width="100%" height={120}>
+      <LineChart data={splits} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+        <defs>
+          <linearGradient id="hrZoneLine" x1="0" y1="0" x2="1" y2="0">
+            {stops.map((s, i) => (
+              <stop key={i} offset={`${s.offset}%`} stopColor={s.color} />
+            ))}
+          </linearGradient>
+        </defs>
+        <XAxis dataKey="km" hide />
+        <YAxis hide domain={['dataMin - 3', 'dataMax + 3']} />
         <Tooltip
-          key={p.km}
-          content={
-            <span className="tnum font-mono">
-              {p.km}km · {p.avg_hr} bpm · {zoneLabel(p.avg_hr, hrMax)}
-            </span>
-          }
-        >
-          <circle
-            cx={p.x}
-            cy={p.y}
-            r="3.5"
-            fill={p.color}
-            stroke="var(--color-card)"
-            strokeWidth="1.5"
-            className="cursor-pointer"
-          />
-        </Tooltip>
-      ))}
-    </svg>
+          content={renderTooltip}
+          cursor={{ stroke: c.line, strokeDasharray: '2 4' }}
+        />
+        <Line
+          type="monotone"
+          dataKey="avg_hr"
+          stroke="url(#hrZoneLine)"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          dot={renderDot}
+          activeDot={{ r: 5, stroke: c.card, strokeWidth: 2 }}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
   );
 };

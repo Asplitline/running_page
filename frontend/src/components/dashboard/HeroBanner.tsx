@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import type { Activity } from '@/data/types';
+import type { Activity, DailyMetric } from '@/data/types';
 import {
   overallStats,
   statsByYear,
@@ -11,11 +11,15 @@ import { personalRecords } from '@/lib/analytics';
 import { formatKm, formatClock, formatPace } from '@/lib/format';
 
 // 首页英雄区 — 里程为核，逐年为证。总里程撑全场 + 年度目标进度环 + 数据条 + 三年逐年对比。
-// 设计：跳跃式字号阶梯 (超大总里程 → 中号年度里程 → 小号明细)，每模块一个焦点。
+// 全页只允许这里的总里程用巨型字号 (clamp 64-120)：视线落点只能有一个，
+// 其余模块一律压到 text-3xl 档以下。逐年差异靠进度条长度表达，不靠字号。
 
 interface Props {
   activities: Activity[];
   year: number;
+  // 轨迹覆盖数与当日身体状态原本各占独立卡片，现并入数据条，由 Home 传入
+  tracks: number;
+  metric: DailyMetric | null;
 }
 
 // 年度目标进度环 (SVG)。项目内无现成进度环组件。
@@ -95,7 +99,10 @@ const Cell = ({
       </div>
     </>
   );
-  const cls = 'border-r border-[var(--color-line)] px-2 pt-5 last:border-r-0';
+  // 行尾格必须去掉右边框，否则是条悬空竖线。窄屏 2 列 → 第 2n 格在行尾；
+  // sm 及以上 3 列 → 第 3n 格在行尾(此时 2n 要把边框加回来)。
+  const cls =
+    'border-r border-[var(--color-line)] px-2 pb-1 pt-5 [&:nth-child(2n)]:border-r-0 sm:[&:nth-child(2n)]:border-r sm:[&:nth-child(3n)]:border-r-0 last:border-r-0';
   return to ? (
     <Link
       to={to}
@@ -141,10 +148,7 @@ const YearRow = ({
         {current && ' · 至今'}
       </span>
     </div>
-    <div
-      className="tnum text-[clamp(30px,4.4vw,44px)] font-extrabold leading-none tracking-tight text-[var(--color-ink)]"
-      style={{ fontFamily: 'var(--font-display)' }}
-    >
+    <div className="tnum text-2xl font-bold leading-none tracking-tight text-[var(--color-ink)]">
       {km}
       <span className="text-[13px] font-semibold text-[var(--color-ink-3)]">
         {' '}
@@ -184,7 +188,7 @@ const YearRow = ({
   </div>
 );
 
-const HeroBanner = ({ activities, year }: Props) => {
+const HeroBanner = ({ activities, year, tracks, metric }: Props) => {
   const s = overallStats(activities, year);
   const years = statsByYear(activities);
   const streak = longestStreak(activities);
@@ -245,8 +249,9 @@ const HeroBanner = ({ activities, year }: Props) => {
           </div>
         </div>
 
-        {/* 数据条 */}
-        <div className="grid grid-cols-4 border-t border-[var(--color-line)]">
+        {/* 数据条 — 窄屏每格仅约 80px，数值会连同单位一起折行，故降为 2 列。
+            轨迹覆盖率与身体状态原先各占一整块卡片、只承载一个数字，收进此处按格并列 */}
+        <div className="grid grid-cols-2 border-t border-[var(--color-line)] sm:grid-cols-3">
           <Cell
             value={formatKm(s.thisYearKm)}
             unit="km"
@@ -263,6 +268,16 @@ const HeroBanner = ({ activities, year }: Props) => {
             label="全马 PB"
             to={fullPb ? `/runs/${fullPb.activity.run_id}` : undefined}
           />
+          <Cell value={String(tracks)} unit="次" label="GPS 轨迹" />
+          {metric?.vo2max != null && (
+            <Cell value={String(metric.vo2max)} label="VO2Max" />
+          )}
+          {metric?.training_status_label != null && (
+            <Cell
+              value={metric.training_status_label}
+              label="训练状态"
+            />
+          )}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { activities } from '@/data/activities';
 import {
@@ -23,9 +24,9 @@ import { TotalLogPanel } from '@/components/dashboard/trainingLog/TotalLogPanel'
 import { Tabs } from '@/components/ui/Tabs';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 
-// 分析页 — 训练档案(日/月/年/总多视图) + 深度分析(PB/效率趋势/散点/ACWR)。
+// 分析页 — 训练档案 (日/月/年/总多视图) + 深度分析 (PB/效率趋势/散点/ACWR)。
 
-// ACWR 区间判读: <0.8 负荷不足, 0.8~1.3 理想, 1.3~1.5 偏高, >1.5 风险升高
+// ACWR 区间判读：<0.8 负荷不足，0.8~1.3 理想，1.3~1.5 偏高，>1.5 风险升高
 const acwrTone = (value: number): { label: string; color: string } => {
   if (value < 0.8) return { label: '负荷不足', color: 'var(--color-ink-3)' };
   if (value <= 1.3) return { label: '理想区间', color: 'var(--color-route)' };
@@ -38,7 +39,7 @@ const Card = ({
   children,
 }: {
   eyebrow: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
   <section className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
     <p className="eyebrow">{eyebrow}</p>
@@ -71,7 +72,7 @@ const TrainingLog = () => {
         {days.length === 0 ? (
           <p className="text-sm text-[var(--color-ink-3)]">暂无跑步记录</p>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="3xl:grid-cols-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
             {days.map((a) => (
               <DayLogCard key={a.run_id} activity={a} />
             ))}
@@ -105,7 +106,7 @@ const DeepAnalysis = () => {
             暂无符合距离档的记录
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {pbs.map((pb) => (
               <Link
                 key={pb.key}
@@ -126,6 +127,11 @@ const DeepAnalysis = () => {
             ))}
           </div>
         )}
+        <p className="mt-3 font-mono text-[11px] text-[var(--color-ink-3)]">
+          这里取「单次跑步的总距离」落在距离档 ±3%
+          以内的最好成绩，所以没跑过的距离档不会出现。训练档案里的 PB
+          是另一套口径：从分段里找最快的连续 N 公里，两者不可直接比较。
+        </p>
       </Card>
 
       <Card eyebrow="有氧效率趋势 · 上行 = 进步">
@@ -156,7 +162,7 @@ const DeepAnalysis = () => {
             </span>
           </div>
           <p className="mt-3 font-mono text-[11px] text-[var(--color-ink-3)]">
-            急慢性负荷比 = 近1周跑量 ÷ 近4周周均跑量。理想区间 0.8~1.3，超过
+            急慢性负荷比 = 近 1 周跑量 ÷ 近 4 周周均跑量。理想区间 0.8~1.3，超过
             1.5 提示受伤风险升高。
           </p>
         </Card>

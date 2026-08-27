@@ -20,7 +20,7 @@ export interface CadenceTrend {
 export interface HrZoneSeconds {
   zone: number; // 1-5
   seconds: number;
-  low_boundary: number; // 该区间下限心率(bpm)
+  low_boundary: number; // 该区间下限心率 (bpm)
 }
 
 export interface Activity {
@@ -56,11 +56,14 @@ export interface Activity {
   avg_stride_length?: number | null;
 
   // ---- M5 佳明深挖 (全部可选)----
+  // 注意：当前佳明同步链路不产出该字段 (activities.json 里 256/256 为 null),
+  // 因此详情页的「心率区间分布」卡与 HrZoneBar 组件实际从不渲染。
+  // 组件是好的，别当成 bug 去修 —— 要它显示得先让后端补出 hr_zones。
   hr_zones?: HrZoneSeconds[] | null;
 }
 
 // 每日身体状态 (VO2max/训练状态)。按日期而非按跑步记录 (对应 daily_metrics.json)。
-// 与 Activity 独立: 同一天可能有 0~N 次跑步，但身体状态只有一份。
+// 与 Activity 独立：同一天可能有 0~N 次跑步，但身体状态只有一份。
 export interface DailyMetric {
   date: string; // YYYY-MM-DD
   vo2max: number | null;

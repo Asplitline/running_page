@@ -13,10 +13,20 @@ import HeroBanner from '@/components/dashboard/HeroBanner';
 import HeatmapCalendar from '@/components/dashboard/HeatmapCalendar';
 import PrSnapshot from '@/components/dashboard/PrSnapshot';
 import RecentRuns from '@/components/dashboard/RecentRuns';
+import RecentRunsSummary from '@/components/dashboard/RecentRunsSummary';
 import AchievementBadges from '@/components/dashboard/AchievementBadges';
 import { WeeklyVolumeChart } from '@/components/charts/WeeklyVolumeChart';
 
-// 首页成就仪表盘 (M3)。金字塔布局：英雄区 (顶) → 坚持 + 峰值双栏 (中) → 最近列表 (折叠线下)。
+// 首页成就仪表盘 (M3)。
+//
+// 三层视觉密度，用来保证视线只有一个落点：
+//   L1 英雄区  — 满宽 + shadow + 大留白，全页唯一的巨型字号 (总里程)
+//   L2 坚持/峰值 — 无 shadow、无独立卡壳，靠 border 分区 + 紧凑 padding
+//   L3 最近跑步 — 折叠线下的落脚点，divide-y 列表 + 轻量汇总
+//
+// 原先 6 个等重白盒各自捧一个巨型数字 (8 个 clamp 40px+ 焦点)，等于没有焦点。
+// 现在轨迹覆盖率与身体状态并入英雄区数据条 (它们各自只承载一个数字，
+// 撑不起一整块卡片)，本周跑量并入坚持栏 (同属"近期节律"语义)。
 
 // 数据里最新年份 (不依赖当前时间，保证可复现)
 const latestYear = (): number =>
@@ -25,9 +35,21 @@ const latestYear = (): number =>
     0
   );
 
+// 数据锚点日 YYYY-MM-DD (同样不依赖当前时间)。热力图据此把锚点后的格子
+// 画成"未来"底色，避免年后半段全空被误读成渲染失败
+const latestDate = (): string =>
+  activities.reduce(
+    (max, a) =>
+      a.start_date_local.slice(0, 10) > max
+        ? a.start_date_local.slice(0, 10)
+        : max,
+    ''
+  );
+
 const Home = () => {
   const year = latestYear();
   const days = activeDays(activities, year);
+  const throughDate = latestDate();
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -48,142 +70,83 @@ const Home = () => {
           跑步档案
         </h1>
 
-        <HeroBanner activities={activities} year={year} />
+        {/* L1 — 全页唯一焦点。轨迹数与身体状态收进它的数据条 */}
+        <HeroBanner
+          activities={activities}
+          year={year}
+          tracks={tracksWithPolylineCount(activities)}
+          metric={latestDailyMetric}
+        />
 
         {/* 成就徽章行：里程碑(累计里程/次数) + 距离档首次达成，无成就时组件自身不渲染 */}
         <div className="mt-6">
           <AchievementBadges activities={activities} />
         </div>
 
-        {/* 近期状态：本周跑量 + 近 8 周趋势 + VO2max/训练状态(有数据才显示) */}
-        <section className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
-          <div className="flex items-baseline justify-between">
-            <p className="eyebrow">近期 · 本周跑量</p>
-            <span className="tnum text-2xl font-bold text-[var(--color-ink)]">
-              {formatKm(thisWeekKm(activities))}
-              <span className="ml-1 text-sm font-normal text-[var(--color-ink-3)]">
-                km
-              </span>
-            </span>
-          </div>
-          <div className="mt-4">
-            <WeeklyVolumeChart weeks={weeklyVolume(activities)} />
-          </div>
-
-          {(latestDailyMetric?.vo2max != null ||
-            latestDailyMetric?.training_status_label != null) && (
-            <div className="mt-6 flex gap-8 border-t border-[var(--color-line)] pt-4">
-              {latestDailyMetric?.vo2max != null && (
-                <div>
-                  <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
-                    VO2Max
-                  </div>
-                  <div className="tnum text-xl font-bold">
-                    {latestDailyMetric.vo2max}
-                  </div>
-                </div>
-              )}
-              {latestDailyMetric?.training_status_label != null && (
-                <div>
-                  <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
-                    训练状态
-                  </div>
-                  <div className="text-xl font-bold capitalize">
-                    {latestDailyMetric.training_status_label}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* 金字塔中层：坚持 + 峰值双栏 */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          {/* 坚持栏 — 主角：全年活跃天数，热力日历退为背景纹理 */}
-          <section className="flex flex-col rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
+        {/* L2 — 坚持 + 峰值双栏。去 shadow/去卡壳，仅用 border 划区，
+            整体密度低于英雄区，视觉上退为支撑材料 */}
+        <div className="mt-10 grid gap-8 border-t border-[var(--color-line)] pt-8 lg:grid-cols-[1.4fr_1fr] lg:gap-10">
+          {/* 坚持栏 — 主角：全年活跃天数，热力日历退为背景纹理。
+              本周跑量 + 近 8 周趋势并入此栏：同属"近期节律"语义，
+              原先单独占一块卡片只是把同一件事切成两块。
+              min-w-0 必需：热力日历是 53 列 inline-grid，固有宽约 740px，
+              不加它栅格轨道会被撑到固有宽、把整页顶出横向滚动条 */}
+          <section className="flex min-w-0 flex-col">
             <p className="eyebrow">坚持 · 全年热力</p>
-            <div className="mb-6 mt-3 flex items-end gap-3 leading-[0.85]">
-              <span
-                className="tnum text-[clamp(48px,7vw,84px)] font-extrabold tracking-tighter text-[var(--color-ink)]"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
+            <div className="mb-5 mt-3 flex items-end gap-3 leading-[0.9]">
+              <span className="tnum text-3xl font-extrabold tracking-tight text-[var(--color-ink)]">
                 {days}
               </span>
-              <span className="mb-2 text-base font-semibold text-[var(--color-ink-3)]">
+              <span className="text-sm font-semibold text-[var(--color-ink-3)]">
                 天活跃 · {year}
               </span>
             </div>
-            <div className="mt-auto">
-              <HeatmapCalendar activities={activities} year={year} />
+            <HeatmapCalendar
+              activities={activities}
+              year={year}
+              throughDate={throughDate}
+            />
+
+            {/* 近 8 周跑量趋势 — 热力图给全年节律，这里给最近八周的量 */}
+            <div className="mt-8 border-t border-[var(--color-line)] pt-5">
+              <div className="flex items-baseline justify-between">
+                <p className="eyebrow">近 8 周 · 本周跑量</p>
+                <span className="tnum text-base font-bold text-[var(--color-ink)]">
+                  {formatKm(thisWeekKm(activities))}
+                  <span className="ml-1 text-xs font-normal text-[var(--color-ink-3)]">
+                    km
+                  </span>
+                </span>
+              </div>
+              <div className="mt-3">
+                <WeeklyVolumeChart weeks={weeklyVolume(activities)} />
+              </div>
             </div>
           </section>
 
           {/* 峰值栏 — 主角：最长距离档 PB */}
-          <section className="flex flex-col rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
+          <section className="self-start lg:border-l lg:border-[var(--color-line)] lg:pl-10">
             <p className="eyebrow">峰值 · 个人最佳</p>
-            <div className="mt-3 flex-1">
+            <div className="mt-3">
               <PrSnapshot activities={activities} />
             </div>
           </section>
         </div>
 
-        {/* 地图板块降权为卡片：无真实地图渲染(新前端零 mapbox 依赖)，
-            用轨迹覆盖率代替"城市数"——location_country 因 CI 同步时
-            SKIP_REVERSE_GEOCODE 恒为空，不可用 */}
-        <section className="mt-6 flex items-center gap-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
-          <div className="flex-1">
-            <p className="eyebrow">轨迹 · 足迹地图</p>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span
-                className="tnum text-4xl font-extrabold tracking-tight text-[var(--color-ink)]"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {tracksWithPolylineCount(activities)}
-              </span>
-              <span className="text-sm text-[var(--color-ink-3)]">
-                次跑步留下了完整 GPS 轨迹
-              </span>
-            </div>
-          </div>
-          <svg
-            width="72"
-            height="72"
-            viewBox="0 0 72 72"
-            className="shrink-0 opacity-60"
-            aria-hidden="true"
-          >
-            {[
-              [12, 20],
-              [24, 12],
-              [38, 26],
-              [50, 16],
-              [58, 32],
-              [44, 44],
-              [30, 40],
-              [18, 52],
-              [40, 58],
-              [56, 54],
-            ].map(([cx, cy], i) => (
-              <circle
-                key={i}
-                cx={cx}
-                cy={cy}
-                r={i % 3 === 0 ? 4 : 2.5}
-                fill="var(--color-route)"
-              />
-            ))}
-          </svg>
-        </section>
-
-        {/* 折叠线下：最近跑步退为落脚点，去等权卡壳弱化 */}
-        <section className="mt-12">
+        {/* L3 — 折叠线下:最近跑步退为落脚点。
+            列表保持单列以延续时间序(横向切列会把时间线剪成几段并排),
+            右栏放同批次汇总补上"这批跑得怎么样",沿用 L2 的 1.4fr_1fr 节奏。 */}
+        <section className="mt-12 border-t border-[var(--color-line)] pt-8">
           <div className="flex items-baseline justify-between">
             <p className="eyebrow">最近跑步</p>
             <span className="font-mono text-[11px] text-[var(--color-ink-3)]">
               近 20 次
             </span>
           </div>
-          <RecentRuns />
+          <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+            <RecentRuns />
+            <RecentRunsSummary />
+          </div>
         </section>
       </main>
     </TooltipProvider>

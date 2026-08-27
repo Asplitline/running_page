@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import type { Activity } from '@/data/types';
 import { personalRecords, PB_DISTANCES } from '@/lib/analytics';
-import { formatClock, formatDateDots, formatPace, toKm } from '@/lib/format';
+import { formatClock, formatPace, toKm } from '@/lib/format';
 import type { PersonalRecord } from '@/lib/analytics';
 
 // PB 快照 — 主角档布局：最长距离档提为大号主角，其余档收小竖排撑满。
+// 字号封顶 text-3xl：全页巨型字号只归英雄区总里程，这里只做卡内局部层级。
 // 主角 = pbs 里距离最长的档 (PB_DISTANCES 升序，取匹配到的最靠后 key)。
 // 每档带配速 (峰值栏语义 = 多快)，配速 = 用时 / 距离，零新数据。
 
@@ -37,28 +38,31 @@ const PrSnapshot = ({ activities }: Props) => {
     .sort((a, b) => distanceRank(b.key) - distanceRank(a.key));
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* 主角：最长距离档 */}
       <Link
         to={`/runs/${hero.activity.run_id}`}
-        className="group rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 transition-colors hover:border-[var(--color-accent)]"
+        className="group rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card-2)] p-5 transition-colors hover:border-[var(--color-accent)]"
       >
         <div className="flex items-baseline justify-between">
           <span className="font-mono text-[11px] uppercase tracking-widest text-[var(--color-ink-3)]">
             {hero.label} 最佳
           </span>
           <span className="tnum font-mono text-[11px] text-[var(--color-ink-3)]">
-            {formatDateDots(hero.activity.start_date_local)}
+            {hero.activity.start_date_local.slice(0, 10)}
           </span>
         </div>
-        <div
-          className="tnum mt-2 text-[clamp(40px,6vw,60px)] font-extrabold leading-none tracking-tight text-[var(--color-ink)] transition-colors group-hover:text-[var(--color-accent)]"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
+        <div className="tnum mt-2 text-3xl font-extrabold leading-none tracking-tight text-[var(--color-ink)] transition-colors group-hover:text-[var(--color-accent)]">
           {formatClock(hero.seconds)}
         </div>
         <div className="mt-2 flex gap-4 font-mono text-[11px] text-[var(--color-ink-3)]">
-          <span className="tnum">{toKm(hero.activity.distance)} km</span>
+          <span className="tnum">
+            距离{' '}
+            <b className="font-semibold text-[var(--color-ink-2)]">
+              {toKm(hero.activity.distance)}
+            </b>
+            km
+          </span>
           <span className="tnum">
             配速{' '}
             <b className="font-semibold text-[var(--color-ink-2)]">
@@ -69,14 +73,20 @@ const PrSnapshot = ({ activities }: Props) => {
         </div>
       </Link>
 
-      {/* 其余档收小竖排，撑满剩余高度对齐左栏 */}
+      {/* 其余档收小横排。列数跟实际档数走：固定 3 列时不足 3 档会留空位，
+          且配 flex-1 会把每格拉成超高竖条 */}
       {rest.length > 0 && (
-        <div className="grid flex-1 grid-cols-3 gap-3">
+        <div
+          className="grid gap-3"
+          style={{
+            gridTemplateColumns: `repeat(${Math.min(rest.length, 3)}, minmax(0, 1fr))`,
+          }}
+        >
           {rest.map((pb) => (
             <Link
               key={pb.key}
               to={`/runs/${pb.activity.run_id}`}
-              className="flex flex-col justify-center rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card-2)] p-3 transition-colors hover:border-[var(--color-accent)]"
+              className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card-2)] p-4 transition-colors hover:border-[var(--color-accent)]"
             >
               <div className="font-mono text-[10px] uppercase tracking-wide text-[var(--color-ink-3)]">
                 {pb.label}

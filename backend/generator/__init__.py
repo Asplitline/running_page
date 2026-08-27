@@ -21,6 +21,17 @@ INDOOR_SPREAD_THRESHOLD = float(os.getenv("INDOOR_SPREAD_THRESHOLD", "0.002"))
 # Distance (degrees) to decide if a route is a loop (start ≈ end).
 _LOOP_CLOSE_THRESHOLD = 0.003  # ~330m
 
+# 视为跑步的 type 取值。GPX 解析走 track.py 会把 "running" 归一成 "Run",
+# FIT 走 sport 字段则可能保留小写原值,故两种写法都收
+RUNNING_TYPES = frozenset({"run", "running", "trail_running", "virtual_run"})
+
+
+def is_running_type(activity_type):
+    """判断活动类型是否属于跑步。type 为空按跑步处理(旧数据默认值即 Run)。"""
+    if not activity_type:
+        return True
+    return str(activity_type).strip().lower() in RUNNING_TYPES
+
 
 def _haversine(lat1, lon1, lat2, lon2):
     """Return distance in metres between two WGS-84 points."""
@@ -134,8 +145,14 @@ class Generator:
             return
 
         synced_files = []
+        skipped_types = {}
 
         for t in tracks:
+            # 本站只展示跑步。数据源可能返回骑行/徒步等类型(如佳明 API 未限定
+            # activity_type),在落库口统一拦掉,避免污染 activities.json
+            if not is_running_type(t.type):
+                skipped_types[t.type] = skipped_types.get(t.type, 0) + 1
+                continue
             created = update_or_create_activity(
                 self.session, t.to_namedtuple(run_from=file_suffix)
             )
@@ -145,6 +162,10 @@ class Generator:
                 sys.stdout.write(".")
             synced_files.extend(t.file_names)
             sys.stdout.flush()
+
+        if skipped_types:
+            detail = ", ".join(f"{k}x{v}" for k, v in sorted(skipped_types.items()))
+            print(f"\nskip {sum(skipped_types.values())} non-running tracks ({detail})")
 
         save_synced_data_file_list(synced_files)
 
@@ -182,7 +203,8 @@ class Generator:
         for activity in activities:
             # Determine running streak.
             date = datetime.datetime.strptime(
-                activity.start_date_local, "%Y-%m-%d %H:%M:%S"  # type: ignore
+                activity.start_date_local,
+                "%Y-%m-%d %H:%M:%S",  # type: ignore
             ).date()
             if last_date is None:
                 streak = 1
