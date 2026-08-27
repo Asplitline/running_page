@@ -68,7 +68,7 @@ describe('dashboard', () => {
     ];
     render(
       <MemoryRouter>
-        <HeroBanner activities={acts} year={2025} />
+        <HeroBanner activities={acts} year={2025} tracks={2} metric={null} />
       </MemoryRouter>
     );
     // 总里程 25km + 逐年对比标题

@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getActivityById } from '@/data/activities';
+import type { CadenceTrend } from '@/data/types';
 import {
   toKm,
   paceFromSpeed,
@@ -15,6 +17,13 @@ import { estimateHrMax } from '@/design/tokens';
 
 // 站点 owner 参考年龄 (spec-design):29 → HRmax 191。无个人 max 时用估算。
 const OWNER_AGE = 29;
+
+// 步频后半程相对前半程的走向。数据层是英文枚举，展示层统一中文。
+const CADENCE_DIRECTION_TEXT: Record<CadenceTrend['direction'], string> = {
+  up: '后段提速',
+  down: '后段下降',
+  flat: '全程平稳',
+};
 
 // 单次跑步详情页 — S6 首个真实页面。森林绿意 + 真实数据。
 
@@ -59,7 +68,7 @@ const Card = ({
   children,
 }: {
   eyebrow: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
   <section className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-soft)]">
     <p className="eyebrow">{eyebrow}</p>
@@ -85,6 +94,12 @@ const RunDetail = () => {
       </main>
     );
   }
+
+  // 除累计爬升外还有别的海拔维度时，才值得画爬升/下降对比与高度区间
+  const hasElevationDetail =
+    activity.min_elevation != null ||
+    activity.max_elevation != null ||
+    activity.elevation_loss != null;
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -152,7 +167,8 @@ const RunDetail = () => {
 
         {activity.cadence_trend && (
           <Card eyebrow="步频趋势">
-            <div className="flex items-center gap-8">
+            {/* 内容只有两个数值 + 一个标签，限宽靠左成组，不横跨整个卡片宽度 */}
+            <div className="mt-2 flex max-w-md items-center gap-8">
               <div>
                 <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
                   前半程
@@ -171,7 +187,7 @@ const RunDetail = () => {
                 </div>
               </div>
               <div className="ml-auto rounded-[var(--radius-pill)] bg-[var(--color-card-2)] px-3 py-1 font-mono text-xs text-[var(--color-ink-2)]">
-                {activity.cadence_trend.direction}
+                {CADENCE_DIRECTION_TEXT[activity.cadence_trend.direction]}
               </div>
             </div>
           </Card>
@@ -230,10 +246,10 @@ const RunDetail = () => {
           </Card>
         )}
 
-        {(activity.min_elevation != null ||
-          activity.max_elevation != null ||
-          activity.elevation_gain != null ||
-          activity.elevation_loss != null) && (
+        {/* 海拔：ElevationSummary 会把缺失的下降/区间按 0 画出来，等于把「没有数据」
+            展示成「数据是 0」。当前佳明同步链路只产出 elevation_gain(下降与高度区间
+            恒空)，故只有真拿到多个维度时才交给它，单一维度直接当指标展示。 */}
+        {hasElevationDetail ? (
           <Card eyebrow="海拔">
             <ElevationSummary
               minElevation={activity.min_elevation ?? null}
@@ -242,6 +258,22 @@ const RunDetail = () => {
               elevationLoss={activity.elevation_loss ?? null}
             />
           </Card>
+        ) : (
+          activity.elevation_gain != null && (
+            <Card eyebrow="海拔">
+              <div className="mt-2">
+                <div className="font-mono text-[11px] text-[var(--color-ink-3)]">
+                  累计爬升
+                </div>
+                <div className="tnum mt-1 text-2xl font-bold">
+                  {Math.round(activity.elevation_gain)}
+                  <span className="ml-0.5 text-xs font-normal text-[var(--color-ink-3)]">
+                    m
+                  </span>
+                </div>
+              </div>
+            </Card>
+          )
         )}
       </main>
     </TooltipProvider>
