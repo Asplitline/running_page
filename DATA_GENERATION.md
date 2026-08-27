@@ -129,13 +129,16 @@ What this does:
 ### 3. How token persistence works
 
 Garmin issues two tokens. The access token (`di_token`) lives about 4 hours; the
-refresh token (`di_refresh_token`) lives about 30 days and **rotates on every
-refresh**. Only file mode persists that rotation, because the underlying library
-writes back to disk solely when it was given a path.
+refresh token (`di_refresh_token`) **rotates on every refresh** and is commonly
+described as lasting ~30 days — but that is an upper bound, not a guarantee. One
+observed token on Garmin CN died after 13 days with no rotation in between, so
+treat any 401 as plausible regardless of the token's age.
 
-String mode therefore keeps replaying the original refresh token until Garmin
-stops honouring it, which surfaces as an unexplained 401 roughly a month after
-setup. File mode plus the CI cache avoids that.
+Only file mode persists that rotation, because the underlying library writes
+back to disk solely when it was given a path. String mode keeps replaying the
+original refresh token until Garmin stops honouring it, which surfaces as an
+unexplained 401 somewhere between two weeks and a month after setup. File mode
+plus the CI cache avoids that.
 
 In CI the flow is:
 
@@ -147,26 +150,66 @@ In CI the flow is:
 
 Each run logs a `[token 观测]` line reporting how long the current refresh token
 has been in use. A steadily rising number with no rotation suggests the write-back
-is not taking effect; a hard 401 near day 30 means the refresh token expired and
-must be regenerated.
+is not taking effect. Note that the line is printed from a `finally` block after
+authentication succeeds — **if the run dies on 401 you will not see it at all**,
+which is itself a signal that the failure happened during the auth handshake
+rather than mid-sync.
 
-### 4. When the token expires
+### 4. Diagnosing a 401 before you regenerate anything
+
+A CI 401 has three plausible causes, and they have completely different fixes:
+
+| Cause | Fix |
+| --- | --- |
+| Refresh token dead | Regenerate — see step 5 |
+| Dependency drift changing the TLS fingerprint | Ensure CI runs `uv sync --frozen` |
+| Runner IP blocked by Garmin CN risk control | No code fix; self-hosted runner or accept it |
+
+Guessing wastes a full regeneration cycle, because a new token fails identically
+if the real cause was the runner IP. Instead **replay the exact same token
+locally** — same string, domestic IP, locked dependencies:
+
+```bash
+mkdir -p .garmin_token
+printf '%s' '<the current GARMIN_SECRET_STRING_CN value>' > .garmin_token/garmin_tokens.json
+chmod 600 .garmin_token/garmin_tokens.json
+
+SKIP_REVERSE_GEOCODE=true uv run python -m backend.sync_garmin.sync \
+  --tokenstore .garmin_token/garmin_tokens.json --is-cn
+```
+
+- **Succeeds locally** → the token is fine; CI is being blocked on IP.
+- **Fails locally too** → the token is genuinely dead; regenerate.
+
+Confirm you are replaying the same token by comparing the byte length the CI
+`Inspect Garmin token file` step logged against the local file. Matching lengths
+mean CI never had a rotated copy — it bootstrapped straight from the Secret.
+
+Two traps when copying the value out of `.env`:
+
+- The value may be wrapped in quotes; strip them, or the file is not valid JSON.
+- Never `echo` the token. Compare SHA-256 prefixes instead of eyeballing content.
+
+### 5. When the token expires
 
 Regenerate with `make_secret`, then do **both** of these:
 
 1. Update the Secret `GARMIN_SECRET_STRING_CN`
 2. Delete the `garmin_token-*` entries under **Actions → Caches**
 
-Step 2 is mandatory. The cache takes precedence over the Secret, so a stale
-cached token file would otherwise keep being restored and the new Secret would
-never be read.
+Step 2 is mandatory, and it is easy to underestimate why. The cache is saved
+with `if: always()`, so **the run that failed on 401 has already stored the dead
+token file**. Bootstrap only writes the Secret out when no file was restored, so
+on the next run the dead file comes back from the cache, bootstrap is skipped,
+and the new Secret is never read — you get a byte-identical 401 and conclude the
+regeneration failed. It did not; it was shadowed.
 
 Optional fallback: setting the Secrets `GARMIN_EMAIL` and `GARMIN_PASSWORD` lets
 the library fall back to a credential login when the token file is unusable. Note
 that a credential login can trigger MFA, which cannot be answered in CI, so treat
 this as a convenience rather than a guarantee.
 
-### 5. Start frontend locally
+### 6. Start frontend locally
 
 ```bash
 pnpm dev
