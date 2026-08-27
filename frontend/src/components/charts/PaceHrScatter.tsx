@@ -1,73 +1,79 @@
+import { useMemo } from 'react';
+import {
+  CartesianGrid,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+  ZAxis,
+} from 'recharts';
 import type { PaceHrPoint } from '@/lib/analytics';
 import { formatPace } from '@/lib/format';
-import { Tooltip } from '@/components/ui/Tooltip';
+import { axisProps, chartColors, ChartEmpty, ChartTooltipBox } from './theme';
+import type { ChartTooltipProps } from './theme';
 
-// 配速-心率散点 (分析页用)。X = 配速(越靠右越快)，Y = 心率(越靠上越高)。
-// 点大小按距离区分，颜色统一心率色 (--color-accent)。
+// 配速-心率散点。X = 配速(越靠右越快，轴已反转)，Y = 心率(越靠上越高)。
+// 点大小按距离区分 (ZAxis)，颜色统一心率色。
 
 interface Props {
   points: PaceHrPoint[];
 }
 
-const W = 800;
-const H = 220;
-const PAD = 16;
-
 export const PaceHrScatter = ({ points }: Props) => {
+  const c = useMemo(chartColors, []);
+  const axis = axisProps(c);
+
   if (points.length < 2) {
-    return (
-      <p className="text-sm text-[var(--color-ink-3)]">
-        数据不足，至少需要两次带心率的跑步
-      </p>
-    );
+    return <ChartEmpty text="数据不足，至少需要两次带心率的跑步" />;
   }
 
-  const paces = points.map((p) => p.paceSecPerKm);
-  const hrs = points.map((p) => p.hr);
-  // X 轴配速越小越快，视觉上希望"越快越靠右" → 反转映射
-  const paceMin = Math.min(...paces);
-  const paceMax = Math.max(...paces);
-  const paceRange = paceMax - paceMin || 1;
-  const hrMin = Math.min(...hrs);
-  const hrMax = Math.max(...hrs);
-  const hrRange = hrMax - hrMin || 1;
-
-  const dists = points.map((p) => p.distanceKm);
-  const distMax = Math.max(...dists) || 1;
+  const renderTooltip = ({
+    active,
+    payload,
+  }: ChartTooltipProps) => {
+    if (!active || !payload?.length) return null;
+    const p = payload[0].payload as PaceHrPoint;
+    return (
+      <ChartTooltipBox>
+        {formatPace(p.paceSecPerKm)}/km · {p.hr}bpm · {p.distanceKm}km
+      </ChartTooltipBox>
+    );
+  };
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full"
-      preserveAspectRatio="none"
-    >
-      {points.map((p) => {
-        const x =
-          W - PAD - ((p.paceSecPerKm - paceMin) / paceRange) * (W - PAD * 2);
-        const y = H - PAD - ((p.hr - hrMin) / hrRange) * (H - PAD * 2);
-        const r = 3 + (p.distanceKm / distMax) * 5;
-        return (
-          <Tooltip
-            key={p.runId}
-            content={
-              <span className="tnum font-mono">
-                {formatPace(p.paceSecPerKm)}/km · {p.hr}bpm · {p.distanceKm}km
-              </span>
-            }
-          >
-            <circle
-              cx={x}
-              cy={y}
-              r={r}
-              fill="var(--color-accent)"
-              opacity="0.55"
-              stroke="var(--color-card)"
-              strokeWidth="1"
-              className="cursor-pointer"
-            />
-          </Tooltip>
-        );
-      })}
-    </svg>
+    <ResponsiveContainer width="100%" height={220}>
+      <ScatterChart margin={{ top: 12, right: 12, bottom: 0, left: -20 }}>
+        <CartesianGrid stroke={c.line} strokeDasharray="2 4" />
+        <XAxis
+          type="number"
+          dataKey="paceSecPerKm"
+          domain={['dataMin - 10', 'dataMax + 10']}
+          reversed
+          tickFormatter={(v: number) => formatPace(v)}
+          {...axis}
+        />
+        <YAxis
+          type="number"
+          dataKey="hr"
+          domain={['dataMin - 5', 'dataMax + 5']}
+          width={44}
+          {...axis}
+        />
+        <ZAxis type="number" dataKey="distanceKm" range={[36, 200]} />
+        <Tooltip
+          content={renderTooltip}
+          cursor={{ stroke: c.line, strokeDasharray: '2 4' }}
+        />
+        <Scatter
+          data={points}
+          fill={c.accent}
+          fillOpacity={0.55}
+          stroke={c.card}
+          strokeWidth={1}
+        />
+      </ScatterChart>
+    </ResponsiveContainer>
   );
 };
