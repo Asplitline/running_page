@@ -233,7 +233,7 @@ jobs:
           SKIP_REVERSE_GEOCODE: 'true'
         run: |
           uv run python -m backend.sync_garmin.sync \
-            --tokenstore .garmin_token/garmin_tokens.json --is-cn
+            --tokenstore .garmin_token/garmin_tokens.json --is-cn --only-run
 
       # 无条件回存:即使同步失败,刷新出的新 token 也必须留下 ——
       # 否则下次运行还是拿旧串,同一个错误会一直重复。
