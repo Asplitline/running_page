@@ -192,17 +192,25 @@ Two traps when copying the value out of `.env`:
 
 ### 5. When the token expires
 
-Regenerate with `make_secret`, then do **both** of these:
+Regenerate with `make_secret` and update the Secret `GARMIN_SECRET_STRING_CN`.
+That is all — the workflow detects the change and overwrites the cached token
+by itself.
 
-1. Update the Secret `GARMIN_SECRET_STRING_CN`
-2. Delete the `garmin_token-*` entries under **Actions → Caches**
+It does so by storing a SHA-256 fingerprint of the Secret alongside the token
+file in the cache (the fingerprint only, never the token). On each run bootstrap
+compares the two:
 
-Step 2 is mandatory, and it is easy to underestimate why. The cache is saved
-with `if: always()`, so **the run that failed on 401 has already stored the dead
-token file**. Bootstrap only writes the Secret out when no file was restored, so
-on the next run the dead file comes back from the cache, bootstrap is skipped,
-and the new Secret is never read — you get a byte-identical 401 and conclude the
-regeneration failed. It did not; it was shadowed.
+| Cached token | Fingerprint | Action |
+| --- | --- | --- |
+| present | matches Secret | keep it — it may hold a newer rotated token |
+| present | differs | overwrite from the Secret, reset the rotation log |
+| absent | — | bootstrap from the Secret |
+
+This used to require manually deleting the `garmin_token-*` entries under
+**Actions → Caches**, and forgetting was costly. The cache is saved with
+`if: always()`, so **a run that failed on 401 has already stored the dead token
+file**; bootstrap would restore it, skip the Secret, and fail byte-identically —
+making a perfectly good regeneration look like it had failed too.
 
 Optional fallback: setting the Secrets `GARMIN_EMAIL` and `GARMIN_PASSWORD` lets
 the library fall back to a credential login when the token file is unusable. Note

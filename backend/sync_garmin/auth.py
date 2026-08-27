@@ -19,12 +19,13 @@ DOWNLOAD_FORMATS = {
 
 # 认证失败时的可读指引,替代满屏底层 traceback
 _AUTH_HINT = (
-    "佳明认证失败(401)。可能原因:\n"
-    "  1. refresh token 已失效(约 30 天有效期)—— 重新生成: "
+    "佳明认证失败(401)。三种成因修法不同,先判定再动手:\n"
+    "  判定方法:用同一份 token 在本地(国内 IP)重放一次,\n"
+    "    本地能过 → 是 runner IP 被风控;本地也 401 → token 确实失效。\n"
+    "  1. refresh token 失效 —— 重新生成: "
     "uv run python -m backend.sync_garmin.make_secret <邮箱> <密码> --is-cn\n"
-    "     CI 修复步骤:① 更新 Secret GARMIN_SECRET_STRING_CN "
-    "② 到 Actions → Caches 删掉 garmin_token-* 缓存(否则旧 token 文件仍会被恢复,"
-    "新 Secret 不生效)\n"
+    "     CI 只需更新 Secret GARMIN_SECRET_STRING_CN,缓存会自动按指纹失效\n"
+    "     (社区称约 30 天寿命,但实测有 13 天即失效的情况,不能靠天数排除)\n"
     "  2. 依赖版本漂移 —— CI 应走 uv sync --frozen(锁定 curl_cffi 等),避免新版 TLS 指纹触发 CN 风控\n"
     "  3. 异地 IP 被风控 —— GitHub runner 境外共享 IP 常被佳明 CN 拦截"
 )

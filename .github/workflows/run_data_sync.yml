@@ -73,7 +73,7 @@ jobs:
             ${{ env.DATA_CACHE_PREFIX }}-
 
       # ── token 持久化(核心)───────────────────────────────────────────────
-      # 佳明 refresh token 每次刷新都会轮换(旧串可能被作废),约 30 天寿命。
+      # 佳明 refresh token 每次刷新都会轮换(旧串可能被作废),寿命最长约 30 天。
       # 走 loads(串) 时轮换值只在内存、进程退出即丢,Secret 里永远是初始串 →
       # 30 天后必挂。改用文件模式 + Actions Cache 让轮换值跨运行存活。
       - name: Restore Garmin token cache
@@ -87,24 +87,56 @@ jobs:
           restore-keys: |
             ${{ env.TOKEN_CACHE_PREFIX }}-
 
-      # 缓存里没有 token 文件时(首次运行 / cache 被清),用 Secret 写出一份。
-      # cache 7 天不访问会被 GitHub 回收,每日运行正常碰不到。
+      # 写出 token 文件。两种情况会用 Secret 覆盖缓存里的文件:
+      #   1. 缓存无文件(首次运行 / cache 被回收,7 天不访问即回收)
+      #   2. Secret 内容变了 —— 说明人工重新生成过 token,缓存里那份已作废
+      #
+      # 情况 2 是必须的:失败运行也会 if:always() 存缓存,坏 token 会一直被
+      # 恢复;若只在"无文件"时才写 Secret,更新 Secret 将永远不生效,报错与
+      # 上次逐字节相同,极易误判成"重新生成也失败了"。
+      # 比对只用 SHA-256 指纹,不把 token 原文写进缓存。
       - name: Bootstrap token file from secret
         env:
           GARMIN_SECRET_STRING_CN: ${{ secrets.GARMIN_SECRET_STRING_CN }}
         run: |
           set -euo pipefail
           mkdir -p .garmin_token
-          if [[ -s .garmin_token/garmin_tokens.json ]]; then
-            echo "token 文件已从缓存恢复,跳过 bootstrap"
-            exit 0
+          token_file=.garmin_token/garmin_tokens.json
+          fp_file=.garmin_token/.secret_fingerprint
+
+          if [[ -n "${GARMIN_SECRET_STRING_CN:-}" ]]; then
+            secret_fp=$(printf '%s' "$GARMIN_SECRET_STRING_CN" | sha256sum | cut -d' ' -f1)
+          else
+            secret_fp=""
           fi
-          if [[ -z "${GARMIN_SECRET_STRING_CN:-}" ]]; then
+
+          if [[ -s "$token_file" ]]; then
+            # 有缓存文件:Secret 指纹一致则沿用(它可能已轮换,比 Secret 更新)
+            cached_fp=$(cat "$fp_file" 2>/dev/null || echo "")
+            if [[ -z "$secret_fp" || "$secret_fp" == "$cached_fp" ]]; then
+              echo "token 文件已从缓存恢复,跳过 bootstrap"
+              exit 0
+            fi
+            if [[ -z "$cached_fp" ]]; then
+              # 指纹机制上线前存的旧缓存。无从判断它与当前 Secret 是否同源,
+              # 保守起见按 Secret 为准重置一次,之后就有指纹可比了。
+              echo "::notice::缓存 token 无指纹记录(指纹机制上线前的旧缓存),按 Secret 重置一次"
+            else
+              echo "::notice::检测到 GARMIN_SECRET_STRING_CN 已更新,用新 Secret 覆盖缓存 token"
+            fi
+          fi
+
+          if [[ -z "$secret_fp" ]]; then
             echo "::error::缓存无 token 文件,且 GARMIN_SECRET_STRING_CN 未配置,无法认证"
             exit 1
           fi
-          printf '%s' "$GARMIN_SECRET_STRING_CN" > .garmin_token/garmin_tokens.json
-          chmod 600 .garmin_token/garmin_tokens.json
+
+          printf '%s' "$GARMIN_SECRET_STRING_CN" > "$token_file"
+          chmod 600 "$token_file"
+          # 指纹随 token 文件一起进缓存,供下次运行比对
+          printf '%s' "$secret_fp" > "$fp_file"
+          # Secret 换新后旧轮换史失去意义,清掉避免"已使用 N 天"读数误导
+          rm -f .garmin_token/garmin_token_audit.json
           echo "已用 Secret bootstrap 出 token 文件"
 
       # token 文件体检:只暴露体征(长度/exp/能否解析 JSON),绝不打印 token 内容。
@@ -160,7 +192,8 @@ jobs:
                   return
               print(
                   f"[token] refresh(di_refresh_token): 已提供(长度={len(tok)})"
-                  " —— 约 30 天寿命;若同步报 401 说明已失效,需重跑 make_secret"
+                  " —— 社区称约 30 天寿命,但实测有 13 天即失效的情况;"
+                  "若同步报 401 先本地重放同一份 token 判定,再决定是否重跑 make_secret"
               )
 
           if not TOKEN_PATH.exists():
