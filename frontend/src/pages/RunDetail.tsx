@@ -13,7 +13,7 @@ import { SplitHrChart } from '@/components/charts/SplitHrChart';
 import { HrZoneBar } from '@/components/charts/HrZoneBar';
 import { ElevationSummary } from '@/components/charts/ElevationSummary';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import { estimateHrMax } from '@/design/tokens';
+import { estimateHrMax, makeZoneResolver } from '@/design/tokens';
 
 // 站点 owner 参考年龄 (spec-design):29 → HRmax 191。无个人 max 时用估算。
 const OWNER_AGE = 29;
@@ -95,6 +95,14 @@ const RunDetail = () => {
     );
   }
 
+  // 心率分区判定：优先用佳明自带的分区下界，无则退回按年龄估算的 HRmax 百分比。
+  // 不用 activity.max_heartrate —— 那是本次最高心率不是生理上限，当分母会把绝大多数
+  // 公里段误判成 Z5 (实测 79%)。
+  const resolveZone = makeZoneResolver(
+    activity.hr_zones,
+    estimateHrMax(OWNER_AGE)
+  );
+
   // 除累计爬升外还有别的海拔维度时，才值得画爬升/下降对比与高度区间
   const hasElevationDetail =
     activity.min_elevation != null ||
@@ -149,13 +157,17 @@ const RunDetail = () => {
         </div>
 
         <Card eyebrow={`逐公里配速 · ${activity.split_paces?.length ?? 0} km`}>
-          <SplitPaceChart splits={activity.split_paces ?? []} />
+          <SplitPaceChart
+            splits={activity.split_paces ?? []}
+            splitHeartRates={activity.split_heart_rates}
+            resolveZone={resolveZone}
+          />
         </Card>
 
         <Card eyebrow="逐公里心率">
           <SplitHrChart
             splits={activity.split_heart_rates ?? []}
-            hrMax={activity.max_heartrate ?? estimateHrMax(OWNER_AGE)}
+            resolveZone={resolveZone}
           />
         </Card>
 

@@ -81,7 +81,7 @@ export const DayLogCard = ({ activity }: Props) => {
   return (
     <Link
       to={`/runs/${activity.run_id}`}
-      className="block rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-5 transition-colors hover:border-[var(--color-accent)]"
+      className="block rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-4 transition-colors hover:border-[var(--color-accent)] sm:p-5"
     >
       <div className="flex items-baseline justify-between">
         <div>
@@ -120,7 +120,7 @@ export const DayLogCard = ({ activity }: Props) => {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-3">
+      <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-2.5 sm:mt-4 sm:gap-y-3">
         <Metric
           label="配速"
           value={paceFromSpeed(activity.average_speed)}

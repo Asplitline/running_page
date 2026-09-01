@@ -146,16 +146,42 @@ export const dailyActivities = (
 
 // ---- 月视图 ----
 
+// 当月训练节奏:最长连跑天数与最长休息间隔。
+// 输入为 monthlyLog 产出的 dailyChartValues(day 连续、km=0 表示当天没跑)。
+export const streakStats = (
+  days: { day: number; km: number }[]
+): { longestRun: number; longestGap: number } => {
+  let longestRun = 0;
+  let longestGap = 0;
+  let curRun = 0;
+  let curGap = 0;
+
+  for (const d of days) {
+    if (d.km > 0) {
+      curRun += 1;
+      curGap = 0;
+      longestRun = Math.max(longestRun, curRun);
+    } else {
+      curGap += 1;
+      curRun = 0;
+      longestGap = Math.max(longestGap, curGap);
+    }
+  }
+  return { longestRun, longestGap };
+};
+
 export interface MonthLog extends PeriodMetrics {
   month: string; // "2024-03"
   dailyChartValues: { day: number; km: number }[]; // 当月每日里程(day=1~当月天数)
+  prevMonthKm: number | null; // 上一相邻月里程,供跨月对比;最早一月为 null
+  firstWeekday: number; // 当月 1 号是周几(0=周一 ... 6=周日),日历网格首格偏移用
 }
 
 const daysInMonth = (year: number, month1to12: number): number =>
   new Date(year, month1to12, 0).getDate();
 
 // 最近 N 个月的月度汇总 (按数据里最新月份倒推，不依赖 Date.now())
-export const monthlyLog = (activities: Activity[], months = 6): MonthLog[] => {
+export const monthlyLog = (activities: Activity[], months = 12): MonthLog[] => {
   const runs = activities.filter(isRun);
   if (runs.length === 0) return [];
 
@@ -175,6 +201,9 @@ export const monthlyLog = (activities: Activity[], months = 6): MonthLog[] => {
         dailyMap.set(day, (dailyMap.get(day) ?? 0) + a.distance / 1000);
       }
 
+      // getDay() 0=周日,这里转成 0=周一 ... 6=周日,与日历网格列序一致
+      const jsWeekday = new Date(y, m - 1, 1).getDay();
+
       return {
         month,
         ...computePeriodMetrics(monthRuns),
@@ -182,9 +211,15 @@ export const monthlyLog = (activities: Activity[], months = 6): MonthLog[] => {
           day,
           km: Math.round(km * 10) / 10,
         })),
+        prevMonthKm: null as number | null,
+        firstWeekday: (jsWeekday + 6) % 7,
       };
     })
-    .sort((a, b) => a.month.localeCompare(b.month)); // 时间升序，供图表从左到右展示
+    .sort((a, b) => a.month.localeCompare(b.month)) // 时间升序，供图表从左到右展示
+    .map((m, i, all) => ({
+      ...m,
+      prevMonthKm: i === 0 ? null : all[i - 1].distanceKm,
+    }));
 };
 
 // ---- 年视图 ----

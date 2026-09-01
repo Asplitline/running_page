@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
 import type { YearLog, LifetimeLog } from '@/lib/trainingLog';
 import { formatClock, formatDateDots, formatPace, toKm } from '@/lib/format';
-import { BarChart } from '@/components/charts/BarChart';
+import { MultiYearTrend } from '@/components/charts/MultiYearTrend';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { TotalLogPanel } from './TotalLogPanel';
 
-// 年视图 — 对齐老前端两列布局 (style.module.css:1029-1042)：
-// 左窄列 = 当年卡(突出) + 历年卡纵向堆叠；右宽列 = 累计卡(与"总"Tab 内容同源)。
+// 年视图 — 重点是「跨月趋势与里程碑」。
+// 顶部一张多年叠加折线承担同期对比(当年 vs 往年),不必上下滚动比两张柱图;
+// 下方按年列出指标与 PB。各年不再单独画 12 月柱图 —— 已被顶部对比图取代。
+// 生涯累计不在此重复展示(那是「总」Tab 的内容)。
 
 interface Props {
   years: YearLog[];
@@ -15,14 +16,12 @@ interface Props {
 
 const YearCard = ({
   year,
-  featured,
   lifetimeBestSeconds,
 }: {
   year: YearLog;
-  featured: boolean;
   lifetimeBestSeconds: Map<string, number>;
 }) => (
-  <div className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-5">
+  <div className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-4 sm:p-5">
     <div className="flex items-baseline justify-between">
       <p className="eyebrow">{year.year}</p>
       <span className="font-mono text-xs text-[var(--color-ink-3)]">
@@ -65,19 +64,8 @@ const YearCard = ({
       </div>
     </div>
 
-    <div className="mt-4">
-      <BarChart
-        data={year.monthlyChartValues.map((m) => ({
-          label: `${m.month}月`,
-          value: m.km,
-        }))}
-        valueLabel="km"
-        height={featured ? 180 : 140}
-      />
-    </div>
-
     {year.personalRecords.length > 0 && (
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--color-line)] pt-4 sm:grid-cols-5">
         {year.personalRecords.map((pb) => {
           const isLifetimeBest = lifetimeBestSeconds.get(pb.key) === pb.seconds;
           return (
@@ -134,18 +122,28 @@ export const YearLogPanel = ({ years, lifetime }: Props) => {
   );
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(320px,760px)_1fr] lg:items-start">
-      <div className="flex flex-col gap-4">
-        {ordered.map((y, i) => (
-          <YearCard
-            key={y.year}
-            year={y}
-            featured={i === 0}
-            lifetimeBestSeconds={lifetimeBestSeconds}
-          />
-        ))}
+    <div className="flex flex-col gap-4">
+      {/* 同期对比图 — 一张图看完所有年份的逐月走势 */}
+      <div className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-4 sm:p-5">
+        <p className="eyebrow">逐月里程 · 同期对比</p>
+        <div className="hidden sm:block">
+          <MultiYearTrend years={years} height={260} />
+        </div>
+        <div className="sm:hidden">
+          <MultiYearTrend years={years} height={200} compact />
+        </div>
+        <p className="mt-2 font-mono text-[11px] text-[var(--color-ink-3)]">
+          实线为最新年份，虚线为往年。同月份纵向比较即同期增减。
+        </p>
       </div>
-      <TotalLogPanel lifetime={lifetime} />
+
+      {ordered.map((y) => (
+        <YearCard
+          key={y.year}
+          year={y}
+          lifetimeBestSeconds={lifetimeBestSeconds}
+        />
+      ))}
     </div>
   );
 };

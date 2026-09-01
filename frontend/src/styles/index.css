@@ -67,6 +67,7 @@
      必须与内置断点同用 rem：Tailwind 按数值排序变体生成 CSS，
      混用 px 会排到 2xl 之前，导致宽屏下被 2xl 规则覆盖。---- */
   --breakpoint-3xl: 120rem;
+  --breakpoint-4xl: 160rem;
 }
 
 /* ---- 暗色主题：重定义 token，组件不感知 ---- */

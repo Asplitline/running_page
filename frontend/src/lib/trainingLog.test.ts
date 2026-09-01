@@ -1,6 +1,7 @@
 import {
   dailyActivities,
   monthlyLog,
+  streakStats,
   yearlyLog,
   lifetimeLog,
   fastestSplitWindow,
@@ -39,7 +40,11 @@ describe('dailyActivities', () => {
       mk({ run_id: 1, start_date_local: '2024-01-01 08:00:00' }),
       mk({ run_id: 2, start_date_local: '2024-01-03 08:00:00' }),
       mk({ run_id: 3, start_date_local: '2024-01-02 08:00:00' }),
-      mk({ run_id: 4, type: 'cycling', start_date_local: '2024-01-04 08:00:00' }),
+      mk({
+        run_id: 4,
+        type: 'cycling',
+        start_date_local: '2024-01-04 08:00:00',
+      }),
     ];
     const result = dailyActivities(acts, 2);
     expect(result.map((a) => a.run_id)).toEqual([2, 3]);
@@ -55,6 +60,53 @@ describe('dailyActivities', () => {
   });
   it('空数组 → 空', () => {
     expect(dailyActivities([])).toEqual([]);
+  });
+});
+
+describe('streakStats', () => {
+  // 输入是「当月每日里程」数组(day 从 1 连续到当月天数)，0 表示当天没跑
+  it('连跑与间隔各取最长', () => {
+    // 1,2,3 跑 → 连 3;4,5,6,7 断 → 隔 4;8 跑;9 断;10 跑
+    const days = [
+      { day: 1, km: 5 },
+      { day: 2, km: 6 },
+      { day: 3, km: 7 },
+      { day: 4, km: 0 },
+      { day: 5, km: 0 },
+      { day: 6, km: 0 },
+      { day: 7, km: 0 },
+      { day: 8, km: 8 },
+      { day: 9, km: 0 },
+      { day: 10, km: 9 },
+    ];
+    expect(streakStats(days)).toEqual({ longestRun: 3, longestGap: 4 });
+  });
+
+  it('整月每天都跑 → 连跑=天数，间隔=0', () => {
+    const days = Array.from({ length: 30 }, (_, i) => ({ day: i + 1, km: 5 }));
+    expect(streakStats(days)).toEqual({ longestRun: 30, longestGap: 0 });
+  });
+
+  it('整月一次没跑 → 连跑=0，间隔=天数', () => {
+    const days = Array.from({ length: 31 }, (_, i) => ({ day: i + 1, km: 0 }));
+    expect(streakStats(days)).toEqual({ longestRun: 0, longestGap: 31 });
+  });
+
+  it('月首月尾的连续段也要计入(不因边界截断)', () => {
+    const days = [
+      { day: 1, km: 5 },
+      { day: 2, km: 5 },
+      { day: 3, km: 0 },
+      { day: 4, km: 5 },
+      { day: 5, km: 5 },
+      { day: 6, km: 5 },
+    ];
+    // 月尾 3 连 > 月首 2 连
+    expect(streakStats(days)).toEqual({ longestRun: 3, longestGap: 1 });
+  });
+
+  it('空数组 → 全 0', () => {
+    expect(streakStats([])).toEqual({ longestRun: 0, longestGap: 0 });
   });
 });
 
@@ -101,6 +153,23 @@ describe('monthlyLog', () => {
     const result = monthlyLog(acts, 2);
     expect(result.map((m) => m.month)).toEqual(['2024-02', '2024-03']);
   });
+  it('每月带上一月里程(prevMonthKm),最早一月为 null', () => {
+    const acts = [
+      mk({ start_date_local: '2024-01-10 08:00:00', distance: 10000 }),
+      mk({ start_date_local: '2024-02-10 08:00:00', distance: 20000 }),
+      mk({ start_date_local: '2024-03-10 08:00:00', distance: 30000 }),
+    ];
+    const result = monthlyLog(acts, 3); // 升序返回
+    expect(result.map((m) => m.month)).toEqual([
+      '2024-01',
+      '2024-02',
+      '2024-03',
+    ]);
+    expect(result[0].prevMonthKm).toBeNull();
+    expect(result[1].prevMonthKm).toBe(10);
+    expect(result[2].prevMonthKm).toBe(20);
+  });
+
   it('空数组 → 空', () => {
     expect(monthlyLog([])).toEqual([]);
   });
@@ -170,7 +239,9 @@ describe('lifetimeLog', () => {
     expect(lifetimeLog(acts).milestoneText).toBe('已突破 2000 km 里程碑');
   });
   it('峰值年份文案：有历年数据时点名峰值年', () => {
-    const acts = [mk({ distance: 5000, start_date_local: '2024-01-01 08:00:00' })];
+    const acts = [
+      mk({ distance: 5000, start_date_local: '2024-01-01 08:00:00' }),
+    ];
     expect(lifetimeLog(acts).peakYearText).toBe('2024 是你的跑量峰值年');
   });
   it('峰值年份文案：无数据时显示默认文案', () => {

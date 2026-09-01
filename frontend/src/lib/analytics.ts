@@ -2,6 +2,11 @@ import type { Activity } from '@/data/types';
 
 // 派生分析计算 (纯函数)。数值计算必须有测试兜底。
 
+// 口径统一：跑步指标只认 type === 'Run'。
+// activities.json 里混有 cycling/hiking/other，骑行同心率下速度远高于跑步，
+// 一旦混入会同时污染 PB 与有氧效率 (实测 10K PB 曾被一次室内骑行顶成 32:53)。
+const isRun = (a: Activity): boolean => a.type === 'Run';
+
 // "H:MM:SS.ffffff" → 秒
 export const durationToSeconds = (raw: string): number => {
   if (!raw) return 0;
@@ -34,7 +39,7 @@ export const personalRecords = (activities: Activity[]): PersonalRecord[] => {
     const lo = dist.meters * (1 - dist.tolerance);
     const hi = dist.meters * (1 + dist.tolerance);
     const candidates = activities
-      .filter((a) => a.distance >= lo && a.distance <= hi)
+      .filter((a) => isRun(a) && a.distance >= lo && a.distance <= hi)
       .map((a) => ({ activity: a, seconds: durationToSeconds(a.moving_time) }))
       .filter((c) => c.seconds > 0);
     if (!candidates.length) continue;
@@ -62,7 +67,7 @@ export interface EfficiencyPoint {
   count: number;
 }
 
-// 配速-心率散点 (分析页用)。每次跑步一个点：配速 (秒/km，越小越快) × 平均心率。
+// 配速 - 心率散点 (分析页用)。每次跑步一个点：配速 (秒/km，越小越快) × 平均心率。
 export interface PaceHrPoint {
   runId: number;
   paceSecPerKm: number;
@@ -85,6 +90,7 @@ export const efficiencyByMonth = (
 ): EfficiencyPoint[] => {
   const map = new Map<string, number[]>();
   for (const a of activities) {
+    if (!isRun(a)) continue;
     const eff = aerobicEfficiency(a);
     if (eff == null) continue;
     const month = a.start_date_local.slice(0, 7);

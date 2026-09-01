@@ -12,8 +12,7 @@ import { TooltipProvider } from '@/components/ui/Tooltip';
 import HeroBanner from '@/components/dashboard/HeroBanner';
 import HeatmapCalendar from '@/components/dashboard/HeatmapCalendar';
 import PrSnapshot from '@/components/dashboard/PrSnapshot';
-import RecentRuns from '@/components/dashboard/RecentRuns';
-import RecentRunsSummary from '@/components/dashboard/RecentRunsSummary';
+import LatestRunPanel from '@/components/dashboard/LatestRunPanel';
 import AchievementBadges from '@/components/dashboard/AchievementBadges';
 import { WeeklyVolumeChart } from '@/components/charts/WeeklyVolumeChart';
 
@@ -78,7 +77,7 @@ const Home = () => {
           metric={latestDailyMetric}
         />
 
-        {/* 成就徽章行：里程碑(累计里程/次数) + 距离档首次达成，无成就时组件自身不渲染 */}
+        {/* 成就徽章行：里程碑 (累计里程/次数) + 距离档首次达成，无成就时组件自身不渲染 */}
         <div className="mt-6">
           <AchievementBadges activities={activities} />
         </div>
@@ -133,19 +132,22 @@ const Home = () => {
           </section>
         </div>
 
-        {/* L3 — 折叠线下:最近跑步退为落脚点。
-            列表保持单列以延续时间序(横向切列会把时间线剪成几段并排),
-            右栏放同批次汇总补上"这批跑得怎么样",沿用 L2 的 1.4fr_1fr 节奏。 */}
+        {/* L3 — 折叠线下：最近跑步退为落脚点。
+            原先铺 20 条流水 + 汇总卡，占掉全页最大一块面积却只在"想点进某一次"时
+            才有用 —— 而那个用途不需要摊开 20 条。现在只讲最近一次，并给它两个
+            参照系 (同类型历史、周节律),三段等宽。全部记录走 /analysis。 */}
         <section className="mt-12 border-t border-[var(--color-line)] pt-8">
           <div className="flex items-baseline justify-between">
             <p className="eyebrow">最近跑步</p>
-            <span className="font-mono text-[11px] text-[var(--color-ink-3)]">
-              近 20 次
-            </span>
+            <Link
+              to="/analysis"
+              className="font-mono text-[11px] text-[var(--color-ink-2)] hover:text-[var(--color-accent)]"
+            >
+              全部记录 →
+            </Link>
           </div>
-          <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-            <RecentRuns />
-            <RecentRunsSummary />
+          <div className="mt-4">
+            <LatestRunPanel activities={activities} />
           </div>
         </section>
       </main>

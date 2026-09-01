@@ -66,6 +66,32 @@ describe('personalRecords', () => {
   it('空数组 → 空', () => {
     expect(personalRecords([])).toEqual([]);
   });
+  // 真实数据里骑行曾以 32:53 抢走 10K PB (跑者实际 52:00)，骑行同距离用时远短于跑步
+  it('排除非 Run 类型', () => {
+    const acts = [
+      mk({
+        run_id: 1,
+        type: 'cycling',
+        distance: 10000,
+        moving_time: '0:30:00',
+      }),
+      mk({
+        run_id: 2,
+        type: 'hiking',
+        distance: 10000,
+        moving_time: '0:40:00',
+      }),
+      mk({ run_id: 3, type: 'Run', distance: 10000, moving_time: '0:50:00' }),
+    ];
+    const p10k = personalRecords(acts).find((p) => p.key === '10k');
+    expect(p10k?.activity.run_id).toBe(3);
+    expect(p10k?.seconds).toBe(3000);
+  });
+  it('全部为非 Run → 该档整个消失，而非退而求其次', () => {
+    expect(personalRecords([mk({ type: 'cycling', distance: 10000 })])).toEqual(
+      []
+    );
+  });
 });
 
 describe('aerobicEfficiency', () => {
@@ -105,10 +131,21 @@ describe('efficiencyByMonth', () => {
   it('跳过无心率', () => {
     expect(efficiencyByMonth([mk({ average_heartrate: null })])).toEqual([]);
   });
+  // 骑行同心率下速度天然更高，混入会把当月效率顶出假尖峰
+  it('排除非 Run 类型', () => {
+    const pts = efficiencyByMonth([
+      mk({ average_speed: 3.0, average_heartrate: 150 }),
+      mk({ type: 'cycling', average_speed: 6.0, average_heartrate: 150 }),
+    ]);
+    expect(pts).toHaveLength(1);
+    expect(pts[0].value).toBe(2);
+    // count 必须是 1：证明骑行是被排除，而非算进去后碰巧数值相同
+    expect(pts[0].count).toBe(1);
+  });
 });
 
 describe('paceHrScatter', () => {
-  it('speed(m/s) → 配速(秒/km) + 心率', () => {
+  it('speed(m/s) → 配速 (秒/km) + 心率', () => {
     const pts = paceHrScatter([
       mk({ run_id: 7, average_speed: 3.0, average_heartrate: 150 }),
     ]);
@@ -122,5 +159,41 @@ describe('paceHrScatter', () => {
   });
   it('排除非 Run 类型', () => {
     expect(paceHrScatter([mk({ type: 'cycling' })])).toEqual([]);
+  });
+});
+
+// 面向契约而非单个函数：本文件所有聚合口径都只认 Run。
+// 将来新增聚合函数若忘了过滤，这里会红，提示此处有统一口径。
+describe('分析口径契约：非 Run 不得进入 PB/效率计算', () => {
+  const mixed = [
+    mk({ run_id: 1, distance: 10000, moving_time: '0:50:00' }),
+    mk({ run_id: 2, distance: 42195, moving_time: '4:00:00' }),
+    // 以下非 Run 全部刻意设成"更优"，能抢占才说明过滤失效
+    mk({
+      run_id: 91,
+      type: 'cycling',
+      distance: 10000,
+      moving_time: '0:30:00',
+    }),
+    mk({ run_id: 92, type: 'hiking', distance: 42195, moving_time: '2:00:00' }),
+    mk({ run_id: 93, type: 'other', average_speed: 9.9 }),
+  ];
+  const runIds = [1, 2];
+
+  it('personalRecords 只产出 Run', () => {
+    for (const pb of personalRecords(mixed)) {
+      expect(runIds).toContain(pb.activity.run_id);
+    }
+  });
+  it('efficiencyByMonth 计入条数等于 Run 条数', () => {
+    const total = efficiencyByMonth(mixed).reduce((s, p) => s + p.count, 0);
+    expect(total).toBe(runIds.length);
+  });
+  it('paceHrScatter 只产出 Run', () => {
+    expect(
+      paceHrScatter(mixed)
+        .map((p) => p.runId)
+        .sort()
+    ).toEqual(runIds);
   });
 });

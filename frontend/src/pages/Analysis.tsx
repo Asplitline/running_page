@@ -14,17 +14,18 @@ import {
   yearlyLog,
   lifetimeLog,
 } from '@/lib/trainingLog';
-import { formatClock, formatDateDots, toKm } from '@/lib/format';
+import { formatClock, formatDateDots, formatPace, toKm } from '@/lib/format';
 import { EfficiencyTrend } from '@/components/charts/EfficiencyTrend';
 import { PaceHrScatter } from '@/components/charts/PaceHrScatter';
 import { DayLogCard } from '@/components/dashboard/trainingLog/DayLogCard';
 import { MonthLogPanel } from '@/components/dashboard/trainingLog/MonthLogPanel';
 import { YearLogPanel } from '@/components/dashboard/trainingLog/YearLogPanel';
 import { TotalLogPanel } from '@/components/dashboard/trainingLog/TotalLogPanel';
+import TimelinePanel from '@/components/dashboard/timeline/TimelinePanel';
 import { Tabs } from '@/components/ui/Tabs';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 
-// 分析页 — 训练档案 (日/月/年/总多视图) + 深度分析 (PB/效率趋势/散点/ACWR)。
+// 分析页 — 训练档案 (日/月/年/总多视图) + 里程碑时间轴 + 深度分析 (PB/效率趋势/散点/ACWR)。
 
 // ACWR 区间判读：<0.8 负荷不足，0.8~1.3 理想，1.3~1.5 偏高，>1.5 风险升高
 const acwrTone = (value: number): { label: string; color: string } => {
@@ -33,6 +34,29 @@ const acwrTone = (value: number): { label: string; color: string } => {
   if (value <= 1.5) return { label: '负荷偏高', color: 'var(--color-accent)' };
   return { label: '受伤风险升高', color: 'var(--color-accent)' };
 };
+
+// 页头指标条 — 单项「大数 + 小标签」，把标题行的空白换成真实信息。
+const HeaderMetric = ({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+}) => (
+  <div className="flex items-baseline gap-1.5">
+    <span
+      className="tnum text-lg font-bold leading-none tracking-tight"
+      style={color ? { color } : undefined}
+    >
+      {value}
+    </span>
+    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--color-ink-3)]">
+      {label}
+    </span>
+  </div>
+);
 
 const Card = ({
   eyebrow,
@@ -67,12 +91,13 @@ const TrainingLog = () => {
       value={logView}
       onValueChange={setLogView}
       ariaLabel="训练档案视图切换"
+      variant="underline"
     >
       <Tabs.Panel value="day">
         {days.length === 0 ? (
           <p className="text-sm text-[var(--color-ink-3)]">暂无跑步记录</p>
         ) : (
-          <div className="3xl:grid-cols-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {days.map((a) => (
               <DayLogCard key={a.run_id} activity={a} />
             ))}
@@ -173,15 +198,19 @@ const DeepAnalysis = () => {
 
 const SECTION_TABS = [
   { value: 'log', label: '训练档案' },
+  { value: 'timeline', label: '里程碑' },
   { value: 'deep', label: '深度分析' },
 ];
 
 const Analysis = () => {
   const [section, setSection] = useState('log');
 
+  const lifetime = lifetimeLog(activities);
+  const acwrValue = acwr(activities);
+
   return (
     <TooltipProvider delayDuration={100}>
-      <main className="w-full px-6 py-12 sm:px-10 lg:px-16">
+      <main className="w-full px-6 py-8 sm:px-10 lg:px-16">
         <Link
           to="/"
           className="font-mono text-xs text-[var(--color-ink-2)] hover:text-[var(--color-accent)]"
@@ -189,31 +218,56 @@ const Analysis = () => {
           ← 首页
         </Link>
 
-        <header className="mt-4">
-          <p className="eyebrow">Analysis</p>
-          <h1
-            className="text-4xl font-extrabold tracking-tight"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            训练分析
-          </h1>
-        </header>
-
-        <div className="mt-6">
-          <Tabs
-            items={SECTION_TABS}
-            value={section}
-            onValueChange={setSection}
-            ariaLabel="分析页分区切换"
-          >
-            <Tabs.Panel value="log">
-              <TrainingLog />
-            </Tabs.Panel>
-            <Tabs.Panel value="deep">
-              <DeepAnalysis />
-            </Tabs.Panel>
-          </Tabs>
-        </div>
+        <Tabs
+          items={SECTION_TABS}
+          value={section}
+          onValueChange={setSection}
+          ariaLabel="分析页分区切换"
+          className="mt-3"
+          listRowClassName="flex flex-wrap items-end justify-between gap-x-8 gap-y-3"
+          leading={
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+              <h1
+                className="text-3xl font-extrabold tracking-tight"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                训练分析
+              </h1>
+              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+                <HeaderMetric label="RUNS" value={String(lifetime.count)} />
+                <HeaderMetric
+                  label="KM"
+                  value={lifetime.distanceKm.toFixed(0)}
+                />
+                <HeaderMetric
+                  label="AVG"
+                  value={formatPace(lifetime.avgPaceSec)}
+                />
+                {acwrValue !== null && (
+                  <HeaderMetric
+                    label="ACWR"
+                    value={acwrValue.toFixed(2)}
+                    color={
+                      acwrValue > 1.3 || acwrValue < 0.8
+                        ? 'var(--color-accent)'
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
+            </div>
+          }
+        >
+          <Tabs.Panel value="log">
+            <TrainingLog />
+          </Tabs.Panel>
+          <Tabs.Panel value="timeline">
+            <TimelinePanel activities={activities} />
+          </Tabs.Panel>
+          <Tabs.Panel value="deep">
+            <DeepAnalysis />
+          </Tabs.Panel>
+        </Tabs>
       </main>
     </TooltipProvider>
   );

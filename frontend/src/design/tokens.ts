@@ -65,3 +65,51 @@ export const hrZoneOf = (hr: number, hrMax: number): HrZone | null => {
     (pct >= 1 ? HR_ZONES[4] : null)
   );
 };
+
+// 按设备侧分区下界判定 (Garmin hr_zones.low_boundary)。
+// 比百分比法准：boundary 是佳明按跑者真实 LTHR/储备心率算的，能复现它自己的时长统计。
+export const hrZoneByBoundaries = (
+  hr: number,
+  zones: { zone: number; low_boundary: number }[]
+): HrZone | null => {
+  if (!hr) return null;
+  // 从高到低找第一个够得着的区；低于 Z1 下界返回 null (交由调用方按"低于 Z1"处理)
+  const hit = [...zones]
+    .filter((z) => z.low_boundary > 0)
+    .sort((a, b) => b.low_boundary - a.low_boundary)
+    .find((z) => hr >= z.low_boundary);
+  return hit ? HR_ZONES.find((z) => z.zone === hit.zone) ?? null : null;
+};
+
+// 分区判定入口：按可信度取源，返回 (hr) => 分区 的判定器。
+//
+// 绝不能用 activity.max_heartrate 当分母 —— 那是"本次跑到的最高心率"而非生理上限，
+// 拿它做分母等于每次跑步都逼近 100%，实测会把 79% 的公里段误判成 Z5 极限。
+export const makeZoneResolver = (
+  hrZones: { zone: number; low_boundary: number }[] | null | undefined,
+  fallbackHrMax: number
+): ((hr: number) => HrZone | null) => {
+  const usable = hrZones?.filter((z) => z.low_boundary > 0) ?? [];
+  if (usable.length > 0) return (hr) => hrZoneByBoundaries(hr, usable);
+  return (hr) => hrZoneOf(hr, fallbackHrMax);
+};
+
+// ---- 时间轴突破档位 → 配色 ----
+// 复用上面的 Z1-Z5 强度色阶:它的语义本就是"强度递进",
+// 正好对上"突破幅度递进"。不另造一套色,避免同一页出现两套语义相近的色阶。
+//
+// 档位判定在 lib/timeline.ts (tierByGainPct / tierByMilestone),
+// 这里只负责档位 → CSS 变量名的映射。
+export const TIER_COLOR_VAR = {
+  minor: '--color-z2', // 微幅刷新 (提升 <2%) — 绿
+  notable: '--color-z3', // 显著刷新 (2%~5%) — 黄
+  first: '--color-z4', // 首次达成 — 橙 (= accent)
+  major: '--color-z5', // 重大突破 (>5%) — 红
+  neutral: '--color-ink-3', // 训练记录 / 未达成目标 — 中性灰
+} as const;
+
+export type TierKey = keyof typeof TIER_COLOR_VAR;
+
+// 档位 → var() 表达式,直接塞进 style 的 --tone 自定义属性。
+export const tierTone = (tier: TierKey): string =>
+  `var(${TIER_COLOR_VAR[tier]})`;
