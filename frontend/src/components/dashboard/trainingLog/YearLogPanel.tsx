@@ -73,6 +73,7 @@ const YearCard = ({
               key={pb.key}
               content={
                 <span className="tnum font-mono text-xs">
+                  {isLifetimeBest && '生涯最好成绩 · '}
                   {formatDateDots(pb.activity.start_date_local)} ·{' '}
                   {formatPace(pb.seconds / (pb.activity.distance / 1000))}/km
                 </span>
@@ -80,23 +81,25 @@ const YearCard = ({
             >
               <Link
                 to={`/runs/${pb.activity.run_id}`}
-                className="block rounded-[var(--radius-card)] border p-3 transition-colors hover:border-[var(--color-accent)]"
-                style={{
-                  borderColor: isLifetimeBest
-                    ? 'var(--color-accent)'
-                    : 'var(--color-line)',
-                  background: isLifetimeBest
-                    ? 'color-mix(in srgb, var(--color-accent) 8%, var(--color-card-2))'
-                    : 'var(--color-card-2)',
-                }}
+                className="relative block rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card-2)] p-3 transition-colors hover:border-[var(--color-accent)]"
               >
-                <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-ink-3)]">
-                  {pb.label}
+                <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wide text-[var(--color-ink-3)]">
+                  <span>{pb.label}</span>
+                  {/* PB 标记 — 卡面保持中性,仅以字距与色点一笔 */}
                   {isLifetimeBest && (
-                    <span className="text-[var(--color-accent)]">★</span>
+                    <span className="font-semibold tracking-[0.18em] text-[var(--color-accent)]">
+                      PB
+                    </span>
                   )}
                 </div>
-                <div className="tnum mt-1 text-lg font-bold tracking-tight">
+                {/* PB 提权 / 非 PB 降权 — 对比靠双向拉开,不靠卡面上色 */}
+                <div
+                  className={`tnum mt-1 text-lg tracking-tight ${
+                    isLifetimeBest
+                      ? 'font-extrabold text-[var(--color-accent)]'
+                      : 'font-semibold'
+                  }`}
+                >
                   {formatClock(pb.seconds)}
                 </div>
                 <div className="tnum mt-1 font-mono text-[10px] text-[var(--color-ink-3)]">

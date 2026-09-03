@@ -142,7 +142,7 @@ const YearRow = ({
   <div>
     <div className="mb-2">
       <span
-        className={`font-mono text-[13px] font-bold tracking-wide ${current ? 'text-[var(--color-accent)]' : 'text-[var(--color-ink-3)]'}`}
+        className={`font-mono text-[13px] font-bold tracking-wide ${current ? 'text-[var(--color-z4-ink)]' : 'text-[var(--color-ink-3)]'}`}
       >
         {year}
         {current && ' · 至今'}
@@ -155,7 +155,7 @@ const YearRow = ({
         km
       </span>
       {deltaKm != null && deltaKm > 0 && (
-        <span className="ml-2.5 align-middle text-[13px] font-bold text-[var(--color-z2)]">
+        <span className="ml-2.5 align-middle text-[13px] font-bold text-[var(--color-z2-ink)]">
           ↑{deltaKm}%
         </span>
       )}
@@ -176,7 +176,7 @@ const YearRow = ({
       <span>
         配速 <b className="font-semibold text-[var(--color-ink-2)]">{pace}</b>
         {fasterSec != null && fasterSec > 0 && (
-          <span className="text-[var(--color-z2)]"> 快 {fasterSec}″</span>
+          <span className="text-[var(--color-z2-ink)]"> 快 {fasterSec}″</span>
         )}
       </span>
       {hr != null && (
@@ -273,10 +273,7 @@ const HeroBanner = ({ activities, year, tracks, metric }: Props) => {
             <Cell value={String(metric.vo2max)} label="VO2Max" />
           )}
           {metric?.training_status_label != null && (
-            <Cell
-              value={metric.training_status_label}
-              label="训练状态"
-            />
+            <Cell value={metric.training_status_label} label="训练状态" />
           )}
         </div>
       </div>

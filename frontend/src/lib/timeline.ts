@@ -2,16 +2,17 @@ import type { Activity } from '@/data/types';
 import { durationToSeconds } from './analytics';
 import { toKm } from './format';
 
-// 时间轴事件提取 (纯函数)。从活动流里挖出"值得记一笔"的高光,
+// 时间轴事件提取 (纯函数)。从活动流里挖出"值得记一笔"的高光，
 // 而不是把 262 次跑步全铺开 —— 时间轴的价值在于筛掉日常、留下节点。
 //
-// 与既有 lib/achievements.ts 的关系:achievements 只产出"徽章标签 + 达成日",
-// 用于首页徽章行;这里要的是带完整指标、可分档上色的事件对象,两者不共用结构。
+// 与 lib/nextGoals.ts 的关系是时态分工：那边只讲"还差多少"(首页),
+// 这里只讲"走过什么"(分析页)。原先首页的 achievements.ts 同样讲已达成，
+// 与本模块 10 项里重复 7 项，已随首页改版删除。
 
 const isRun = (a: Activity): boolean => a.type === 'Run';
 
 // ---- 突破分档 ----
-// 颜色语义的唯一来源。阈值按真实数据分布定 (全马 -13.8% 独档,
+// 颜色语义的唯一来源。阈值按真实数据分布定 (全马 -13.8% 独档，
 // 10K 连续刷新落在 1.2%~3.2%),写死便于测试。
 export type Tier = 'minor' | 'notable' | 'major' | 'first' | 'neutral';
 
@@ -22,7 +23,7 @@ export const tierByGainPct = (gainPct: number): Tier => {
   return 'minor';
 };
 
-// 累计里程碑阈值 (km)。按量级递进上色:越大越靠暖端。
+// 累计里程碑阈值 (km)。按量级递进上色：越大越靠暖端。
 const MILESTONE_KM = [100, 500, 1000, 1500, 2000, 2500, 3000] as const;
 
 // 里程碑量级 → 档位。100 起步、2000+ 顶档。
@@ -33,7 +34,7 @@ export const tierByMilestone = (km: number): Tier => {
   return 'minor';
 };
 
-// PB 距离档 (与 analytics.PB_DISTANCES 同口径但容差独立,
+// PB 距离档 (与 analytics.PB_DISTANCES 同口径但容差独立，
 // 时间轴要的是"这次算不算该距离档",宽一点能多捞到比赛)
 const PB_SPECS = [
   { key: '10k', label: '10K', meters: 10000, tol: 0.03 },
@@ -71,13 +72,13 @@ export interface PbStep {
 }
 
 export interface TimelineEvent {
-  key: string; // React key,全局唯一
+  key: string; // React key，全局唯一
   kind: TimelineKind;
   date: string; // YYYY-MM-DD，排序与展示用
   tier: Tier; // 决定配色
   title: string;
   runId?: number; // 有则可跳详情页
-  // 各 kind 的专属载荷 (可选,渲染层按 kind 取)
+  // 各 kind 的专属载荷 (可选，渲染层按 kind 取)
   seconds?: number; // 成绩用时
   distanceKm?: number;
   paceSecPerKm?: number;
@@ -89,7 +90,7 @@ export interface TimelineEvent {
   steps?: PbStep[]; // PB 连续刷新的完整阶梯
   label?: string; // 距离档标签 / 质量课名
   monthRuns?: number; // 月峰值的次数
-  remainKm?: number; // 目标:还差多少
+  remainKm?: number; // 目标：还差多少
   remainSeconds?: number;
   progressPct?: number; // 目标进度 0~100
   note?: string; // 补充说明 (如"同日跨过 1500km")
@@ -115,7 +116,7 @@ const raceEvents = (runs: Activity[]): TimelineEvent[] =>
   }));
 
 // ---- PB 事件 ----
-// 每次刷新记一条,并累积完整阶梯 (steps) 供"连续刷新"卡渲染。
+// 每次刷新记一条，并累积完整阶梯 (steps) 供"连续刷新"卡渲染。
 const pbEvents = (runs: Activity[]): TimelineEvent[] => {
   const out: TimelineEvent[] = [];
   for (const spec of PB_SPECS) {
@@ -127,7 +128,7 @@ const pbEvents = (runs: Activity[]): TimelineEvent[] => {
       if (a.distance < lo || a.distance > hi) continue;
       const sec = durationToSeconds(a.moving_time);
       if (sec <= 0) continue;
-      if (best !== null && sec >= best) continue; // 没刷新,跳过
+      if (best !== null && sec >= best) continue; // 没刷新，跳过
       const prev = best;
       best = sec;
       steps.push({ seconds: sec, date: dateOf(a) });
@@ -197,7 +198,7 @@ const peakMonthEvent = (runs: Activity[]): TimelineEvent | null => {
   const [month, v] = [...byMonth.entries()].reduce((best, cur) =>
     cur[1].km > best[1].km ? cur : best
   );
-  // 峰值月的"日期"取该月最后一次跑步日,保证排序落在月内
+  // 峰值月的"日期"取该月最后一次跑步日，保证排序落在月内
   const lastInMonth = runs
     .filter((a) => a.start_date_local.slice(0, 7) === month)
     .reduce((m, a) => (dateOf(a) > m ? dateOf(a) : m), '');

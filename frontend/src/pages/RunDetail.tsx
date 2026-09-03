@@ -49,7 +49,8 @@ const Kpi = ({
           tone === 'pace'
             ? 'var(--color-route)'
             : tone === 'hr'
-              ? 'var(--color-accent)'
+              ? // accent 作 30px 数字在 card-2 上仅 2.57:1(大字门槛 3.0)，用压深版
+                'var(--color-z4-ink)'
               : 'var(--color-ink)',
       }}
     >

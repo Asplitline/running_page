@@ -105,7 +105,8 @@ export const DayLogCard = ({ activity }: Props) => {
             >
               <span
                 className="rounded-[var(--radius-pill)] px-2 py-0.5 font-mono text-[10px] text-white"
-                style={{ background: avgHrZone.color }}
+                // 徽章底承载白字，用压深版：Z3 黄底白字仅 1.85:1
+                style={{ background: avgHrZone.solidColor }}
               >
                 {avgHrZone.label}
               </span>
@@ -140,7 +141,7 @@ export const DayLogCard = ({ activity }: Props) => {
               : '--'
           }
           unit="bpm"
-          tone={avgHrZone?.color}
+          tone={avgHrZone?.inkColor}
         />
         <Metric
           label="峰值心率"
@@ -150,7 +151,7 @@ export const DayLogCard = ({ activity }: Props) => {
               : '--'
           }
           unit="bpm"
-          tone={maxHrZone?.color}
+          tone={maxHrZone?.inkColor}
         />
         <Metric
           label="步频"

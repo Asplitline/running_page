@@ -43,7 +43,7 @@ const RecentRuns = () => {
                   <span
                     className={
                       isLongest
-                        ? 'rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-1.5 py-0.5 text-white'
+                        ? 'rounded-[var(--radius-sm)] bg-[var(--color-accent-solid)] px-1.5 py-0.5 text-white'
                         : ''
                     }
                   >

@@ -15,5 +15,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // 补齐 jsdom 缺失的浏览器 API (ResizeObserver 等)
+    setupFiles: ['./src/test-setup.ts'],
   },
 });

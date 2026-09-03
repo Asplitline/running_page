@@ -11,9 +11,9 @@ import { formatKm } from '@/lib/format';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import HeroBanner from '@/components/dashboard/HeroBanner';
 import HeatmapCalendar from '@/components/dashboard/HeatmapCalendar';
-import PrSnapshot from '@/components/dashboard/PrSnapshot';
+import HeatLegend from '@/components/dashboard/HeatLegend';
 import LatestRunPanel from '@/components/dashboard/LatestRunPanel';
-import AchievementBadges from '@/components/dashboard/AchievementBadges';
+import NextGoalsPanel from '@/components/dashboard/NextGoalsPanel';
 import { WeeklyVolumeChart } from '@/components/charts/WeeklyVolumeChart';
 
 // 首页成就仪表盘 (M3)。
@@ -25,7 +25,15 @@ import { WeeklyVolumeChart } from '@/components/charts/WeeklyVolumeChart';
 //
 // 原先 6 个等重白盒各自捧一个巨型数字 (8 个 clamp 40px+ 焦点)，等于没有焦点。
 // 现在轨迹覆盖率与身体状态并入英雄区数据条 (它们各自只承载一个数字，
-// 撑不起一整块卡片)，本周跑量并入坚持栏 (同属"近期节律"语义)。
+// 撑不起一整块卡片)。
+//
+// L2 这层曾是「坚持 1.4fr / 峰值 1fr」双栏，两个问题：
+//   1. 热力图固有宽约 760px，1.4fr 轨道在 1440px 以下装不下，靠 overflow-x
+//      静默裁掉年末月份 —— 用户既看不到数据，也没有可滚动的提示。
+//   2. PB 已在分析页有全档版本，而英雄区数据条里还有一个「全马 PB」格，
+//      右栏那组卡片是同一页内的第三次复述，撑出约 210px 空白。
+// 现在热力图提为满宽横幅 (满宽后 1024px 以上都能单行画完整年)，PB 栏移除，
+// 下方两卡讲「最近节律」与「下一个目标」—— 后者是首页独有、分析页没有的视角。
 
 // 数据里最新年份 (不依赖当前时间，保证可复现)
 const latestYear = (): number =>
@@ -77,59 +85,58 @@ const Home = () => {
           metric={latestDailyMetric}
         />
 
-        {/* 成就徽章行：里程碑 (累计里程/次数) + 距离档首次达成，无成就时组件自身不渲染 */}
-        <div className="mt-6">
-          <AchievementBadges activities={activities} />
-        </div>
-
-        {/* L2 — 坚持 + 峰值双栏。去 shadow/去卡壳，仅用 border 划区，
-            整体密度低于英雄区，视觉上退为支撑材料 */}
-        <div className="mt-10 grid gap-8 border-t border-[var(--color-line)] pt-8 lg:grid-cols-[1.4fr_1fr] lg:gap-10">
-          {/* 坚持栏 — 主角：全年活跃天数，热力日历退为背景纹理。
-              本周跑量 + 近 8 周趋势并入此栏：同属"近期节律"语义，
-              原先单独占一块卡片只是把同一件事切成两块。
-              min-w-0 必需：热力日历是 53 列 inline-grid，固有宽约 740px，
-              不加它栅格轨道会被撑到固有宽、把整页顶出横向滚动条 */}
-          <section className="flex min-w-0 flex-col">
-            <p className="eyebrow">坚持 · 全年热力</p>
-            <div className="mb-5 mt-3 flex items-end gap-3 leading-[0.9]">
-              <span className="tnum text-3xl font-extrabold tracking-tight text-[var(--color-ink)]">
-                {days}
-              </span>
-              <span className="text-sm font-semibold text-[var(--color-ink-3)]">
-                天活跃 · {year}
+        {/* L2 — 坚持横幅：热力图满宽。去 shadow/去卡壳，仅用 border 划区，
+            整体密度低于英雄区，视觉上退为支撑材料。
+            满宽是热力图的物理需求：单行画完整年需约 760px，塞进任何分栏轨道
+            都会在常见视宽下装不下。组件内部按容器宽度自适应分段，不再溢出。 */}
+        <section className="mt-10 border-t border-[var(--color-line)] pt-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              <p className="eyebrow">坚持 · 全年热力</p>
+              <span className="flex items-end gap-2.5 leading-[0.9]">
+                <span className="tnum text-3xl font-extrabold tracking-tight text-[var(--color-ink)]">
+                  {days}
+                </span>
+                <span className="text-sm font-semibold text-[var(--color-ink-3)]">
+                  天活跃 · {year}
+                </span>
               </span>
             </div>
+            {/* 图例移到标题行：原先埋在热力图下方紧贴分割线，9px 字读不到 */}
+            <HeatLegend />
+          </div>
+          <div className="mt-4">
             <HeatmapCalendar
               activities={activities}
               year={year}
               throughDate={throughDate}
             />
+          </div>
+        </section>
 
-            {/* 近 8 周跑量趋势 — 热力图给全年节律，这里给最近八周的量 */}
-            <div className="mt-8 border-t border-[var(--color-line)] pt-5">
-              <div className="flex items-baseline justify-between">
-                <p className="eyebrow">近 8 周 · 本周跑量</p>
-                <span className="tnum text-base font-bold text-[var(--color-ink)]">
+        {/* 节律 + 目标。原「峰值 · 个人最佳」栏已移除：PB 在分析页有全档，
+            英雄区数据条也有一格全马 PB，此处是同页第三次复述。
+            腾出的位置给「还差多少」——首页独有视角，分析页只讲已发生的事。
+            目标面板内部自带双栏(主目标 + 触手可及的突破)，所以给它更宽的
+            轨道；它也自带描边与内边距，外层不再重复包一层卡壳。 */}
+        <div className="mt-8 grid gap-5 lg:grid-cols-[1fr_1.6fr]">
+          <section className="flex min-w-0 flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-card)] p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <p className="eyebrow">节律 · 近 8 周</p>
+              <span className="whitespace-nowrap font-mono text-[11px] text-[var(--color-ink-3)]">
+                本周{' '}
+                <b className="tnum text-[15px] font-bold text-[var(--color-ink)]">
                   {formatKm(thisWeekKm(activities))}
-                  <span className="ml-1 text-xs font-normal text-[var(--color-ink-3)]">
-                    km
-                  </span>
-                </span>
-              </div>
-              <div className="mt-3">
-                <WeeklyVolumeChart weeks={weeklyVolume(activities)} />
-              </div>
+                </b>
+                km
+              </span>
             </div>
+            <WeeklyVolumeChart weeks={weeklyVolume(activities)} />
           </section>
 
-          {/* 峰值栏 — 主角：最长距离档 PB */}
-          <section className="self-start lg:border-l lg:border-[var(--color-line)] lg:pl-10">
-            <p className="eyebrow">峰值 · 个人最佳</p>
-            <div className="mt-3">
-              <PrSnapshot activities={activities} />
-            </div>
-          </section>
+          <div className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)]">
+            <NextGoalsPanel activities={activities} />
+          </div>
         </div>
 
         {/* L3 — 折叠线下：最近跑步退为落脚点。

@@ -60,12 +60,34 @@ export const MultiYearTrend = ({
     if (!active || !payload?.length) return null;
     return (
       <ChartTooltipBox>
-        {label} 月
-        {payload.map((p) => (
-          <span key={String(p.name)} className="ml-2">
-            {String(p.name)} {p.value}km
-          </span>
-        ))}
+        <span className="mb-1 block text-[var(--color-ink-3)]">{label} 月</span>
+        {payload.map((p) => {
+          const isLatest = String(p.name) === String(latestYear);
+          return (
+            <span
+              key={String(p.name)}
+              className="flex items-center gap-2 leading-5"
+            >
+              {/* 色块对应折线颜色,tooltip 里也能一眼分清哪年 */}
+              <span
+                aria-hidden
+                className="h-0.5 w-3 shrink-0 rounded-full"
+                style={{
+                  background: isLatest ? c.accent : c.ink3,
+                  opacity: isLatest ? 1 : 0.5,
+                }}
+              />
+              <span className={isLatest ? '' : 'text-[var(--color-ink-3)]'}>
+                {String(p.name)}
+              </span>
+              <span
+                className={`ml-auto ${isLatest ? 'font-semibold' : 'text-[var(--color-ink-3)]'}`}
+              >
+                {p.value}km
+              </span>
+            </span>
+          );
+        })}
       </ChartTooltipBox>
     );
   };

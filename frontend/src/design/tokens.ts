@@ -2,11 +2,19 @@
 // 视觉真相源是 styles/index.css 的 @theme;此处保持同步。
 
 // 心率分区 Z1-Z5(绿→黄→橙→红，强度递增)
+// color   = 图表填充色 (只需 3:1)
+// inkColor= 供文字使用的 var() 引用 —— 原 color 作文字在亮底上仅 1.85~4.08:1
+//           (Z3 黄最差)，小字读不清。走 CSS 变量而非硬编码，暗色下
+//           z*-ink 会回落到原色 (深底上原色本就 4.11~9.06:1)
+// solidColor= 实心徽章底 (白字压其上)。与 inkColor 不同，它在暗色下也不回落 ——
+//           白字压在 z3 原色黄上只有 1.85:1
 export const HR_ZONES = [
   {
     zone: 1,
     key: 'z1',
     color: '#58B99D',
+    inkColor: 'var(--color-z1-ink)',
+    solidColor: 'var(--color-z1-solid)',
     label: '恢复',
     pctMin: 0.5,
     pctMax: 0.6,
@@ -15,6 +23,8 @@ export const HR_ZONES = [
     zone: 2,
     key: 'z2',
     color: '#82BE53',
+    inkColor: 'var(--color-z2-ink)',
+    solidColor: 'var(--color-z2-solid)',
     label: '有氧',
     pctMin: 0.6,
     pctMax: 0.7,
@@ -23,6 +33,8 @@ export const HR_ZONES = [
     zone: 3,
     key: 'z3',
     color: '#E5B93C',
+    inkColor: 'var(--color-z3-ink)',
+    solidColor: 'var(--color-z3-solid)',
     label: '节奏',
     pctMin: 0.7,
     pctMax: 0.8,
@@ -31,6 +43,8 @@ export const HR_ZONES = [
     zone: 4,
     key: 'z4',
     color: '#EF7D33',
+    inkColor: 'var(--color-z4-ink)',
+    solidColor: 'var(--color-z4-solid)',
     label: '阈值',
     pctMin: 0.8,
     pctMax: 0.9,
@@ -39,6 +53,8 @@ export const HR_ZONES = [
     zone: 5,
     key: 'z5',
     color: '#DC4C3F',
+    inkColor: 'var(--color-z5-ink)',
+    solidColor: 'var(--color-z5-solid)',
     label: '极限',
     pctMin: 0.9,
     pctMax: 1.0,

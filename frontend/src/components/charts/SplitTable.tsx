@@ -27,9 +27,7 @@ export const SplitTable = ({ splitPaces, splitHeartRates, hrMax }: Props) => {
     return <p className="text-sm text-[var(--color-ink-3)]">无分段数据</p>;
   }
 
-  const hrByKm = new Map(
-    (splitHeartRates ?? []).map((h) => [h.km, h.avg_hr])
-  );
+  const hrByKm = new Map((splitHeartRates ?? []).map((h) => [h.km, h.avg_hr]));
   const rows: Row[] = splitPaces
     .map((s) => ({
       km: s.km,
@@ -43,14 +41,21 @@ export const SplitTable = ({ splitPaces, splitHeartRates, hrMax }: Props) => {
   );
   const peakHr = rows.reduce<Row | null>((best, r) => {
     if (r.heartRate == null) return best;
-    if (best === null || best.heartRate === null || r.heartRate > best.heartRate) {
+    if (
+      best === null ||
+      best.heartRate === null ||
+      r.heartRate > best.heartRate
+    ) {
       return r;
     }
     return best;
   }, null);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / SPLIT_PAGE_SIZE));
-  const paged = rows.slice(page * SPLIT_PAGE_SIZE, page * SPLIT_PAGE_SIZE + SPLIT_PAGE_SIZE);
+  const paged = rows.slice(
+    page * SPLIT_PAGE_SIZE,
+    page * SPLIT_PAGE_SIZE + SPLIT_PAGE_SIZE
+  );
 
   return (
     <div>
@@ -65,14 +70,17 @@ export const SplitTable = ({ splitPaces, splitHeartRates, hrMax }: Props) => {
           const isPeakHr = peakHr != null && r.km === peakHr.km;
           const zone = r.heartRate ? hrZoneOf(r.heartRate, hrMax) : null;
           return (
-            <div key={r.km} className="tnum grid grid-cols-3 gap-2 py-2 text-sm">
+            <div
+              key={r.km}
+              className="tnum grid grid-cols-3 gap-2 py-2 text-sm"
+            >
               <span className="font-mono text-[var(--color-ink-3)]">
                 {r.km}K
               </span>
               <span
                 className={
                   isFastest
-                    ? 'rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-1.5 py-0.5 font-semibold text-white'
+                    ? 'rounded-[var(--radius-sm)] bg-[var(--color-accent-solid)] px-1.5 py-0.5 font-semibold text-white'
                     : ''
                 }
               >
@@ -85,8 +93,10 @@ export const SplitTable = ({ splitPaces, splitHeartRates, hrMax }: Props) => {
                     : ''
                 }
                 style={{
-                  background: isPeakHr ? 'var(--color-z5)' : undefined,
-                  color: !isPeakHr && zone ? zone.color : undefined,
+                  // 徽章底承载白字，用压深版 (白字于 z5 原色仅 4.08:1)
+                  background: isPeakHr ? 'var(--color-z5-solid)' : undefined,
+                  // 文字用 inkColor(压深版)：原 zone.color 是图表填充色，作文字最低仅 1.85:1
+                  color: !isPeakHr && zone ? zone.inkColor : undefined,
                 }}
               >
                 {r.heartRate ? `${r.heartRate} bpm` : '--'}

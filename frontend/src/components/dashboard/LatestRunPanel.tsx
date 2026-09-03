@@ -87,7 +87,7 @@ const LatestRunPanel = ({ activities, weeks = 8 }: Props) => {
       {/* 1 — 这一次 */}
       <section className="border-b border-[var(--color-line)] p-5 lg:border-b-0 lg:border-r">
         <p className="flex items-center gap-2 font-mono text-[11px] text-[var(--color-ink-3)]">
-          <span className="rounded-[var(--radius-pill)] bg-[var(--color-accent)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-white">
+          <span className="rounded-[var(--radius-pill)] bg-[var(--color-accent-solid)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-white">
             最新
           </span>
           <span className="tnum">
@@ -160,7 +160,7 @@ const LatestRunPanel = ({ activities, weeks = 8 }: Props) => {
                     <span
                       className={`text-[11px] font-medium ${
                         peers.paceDelta > 0
-                          ? 'text-[var(--color-z1)]'
+                          ? 'text-[var(--color-z1-ink)]'
                           : 'text-[var(--color-accent)]'
                       }`}
                     >
@@ -190,7 +190,7 @@ const LatestRunPanel = ({ activities, weeks = 8 }: Props) => {
                         <span
                           className={`text-[11px] font-medium ${
                             peers.hrDelta > 0
-                              ? 'text-[var(--color-z1)]'
+                              ? 'text-[var(--color-z1-ink)]'
                               : 'text-[var(--color-ink-3)]'
                           }`}
                         >

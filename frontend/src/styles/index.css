@@ -22,7 +22,10 @@
   --color-card-2: #f5f8f6;
   --color-ink: #17211c;
   --color-ink-2: #57635d;
-  --color-ink-3: #94a099;
+  /* 三级文字。取值受 WCAG AA 约束：须在 paper/card/card-2 上均 >=4.5:1
+     (原 #94a099 仅 2.38~2.71，全站三级小字都读不清)。同时须明显浅于
+     ink-2 (#57635d) 以保住三级层次 */
+  --color-ink-3: #626e67;
   --color-line: #dce3de;
   --color-line-2: #e8ede9;
 
@@ -33,19 +36,48 @@
   --color-z4: #ef7d33;
   --color-z5: #dc4c3f;
 
+  /* ---- 分区文字色 (z*-ink)：原 z1-z5 是为图表填充调的，
+     作为文字时在亮底上只有 1.85~4.08:1(Z3 黄最差)，小字读不清。
+     图表继续用 z1-z5(填充只需 3:1)，文字一律用这组压深版。---- */
+  --color-z1-ink: #2f6f5c;
+  --color-z2-ink: #497026;
+  --color-z3-ink: #7d620d;
+  --color-z4-ink: #a85214;
+  --color-z5-ink: #c0392c;
+
+  /* 实心徽章底 (白字压其上)。与 z*-ink 同值，但语义不同：
+     ink = 彩色文字压在浅底上；solid = 白色文字压在彩底上。
+     两者亮暗行为不同 —— ink 在暗色回落原色，solid 两个主题都必须保持深色，
+     否则白字压在 z3 黄上只有 1.85:1 */
+  --color-z1-solid: #2f6f5c;
+  --color-z2-solid: #497026;
+  --color-z3-solid: #7d620d;
+  --color-z4-solid: #a85214;
+  --color-z5-solid: #c0392c;
+
   /* ---- 强调 / 轨迹 ---- */
   --color-accent: #ef7d33;
+  /* 实心徽章底色：白字压在 accent(#ef7d33) 上仅 2.74:1，10px 小字读不清。
+     徽章一律用这个压深版承载白字 (5.84:1)，accent 保留给描边/进度条等图形 */
+  --color-accent-solid: #a85214;
   --color-route: #378add;
   --color-bar-muted: #dce3de;
 
-  /* ---- 热力梯度(距离档位,暖色单色系,与心率分区解耦) ---- */
-  --color-heat-0: #eef2ef;
+  /* ---- 热力梯度(距离档位,暖色单色系,与心率分区解耦) ----
+     heat-0(未跑) 与 heat-future(未到) 是空格子的两种状态,必须都能在
+     --color-paper 上看见 —— 热力图直接铺在页面底色上,没有卡壳兜底。
+     heat-0 对 paper 需保持约 1.2 的对比度,同时避开 --color-line,
+     否则空格子会和分割线糊成一片。
+     注意 heat-0 → heat-1 亮度是反向的(灰绿 0.71 → 暖橙 0.78):
+     "无数据"是中性通道,"有数据"才进暖色梯度,两者不是同一条标尺。
+     真正需要单调递减的是 heat-1 → heat-5。 */
+  --color-heat-0: #d5ded8;
   --color-heat-1: #fbe0c6;
   --color-heat-2: #f7c18d;
   --color-heat-3: #f2a05c;
   --color-heat-4: #ef7d33;
   --color-heat-5: #c85a1c;
-  --color-heat-future: #f7f9f8;
+  --color-heat-future: #e7ebe8;
 
   /* ---- 字体 (系统栈占位)---- */
   --font-display: 'Archivo', 'Noto Sans SC', -apple-system, system-ui,
@@ -78,20 +110,35 @@
   --color-card-2: #1e2723;
   --color-ink: #e9eeeb;
   --color-ink-2: #9da9a2;
-  --color-ink-3: #68746d;
+  --color-ink-3: #8a968e;
   --color-line: #28322d;
   --color-line-2: #222b27;
   --color-route: #5fa8e8;
+  --color-accent-solid: #b4500f;
   --color-bar-muted: #2e3934;
 
+  /* 暗色下 z1-z5 在深底上已有 4.11~9.06:1，文字色直接复用原色 */
+  --color-z1-ink: var(--color-z1);
+  --color-z2-ink: var(--color-z2);
+  --color-z3-ink: var(--color-z3);
+  --color-z4-ink: var(--color-z4);
+  /* z5 红在深底上仅 3.76:1，需单独提亮；其余四档原色已 >=4.5 */
+  --color-z5-ink: #e8695d;
+  /* solid 不回落原色：白字必须始终压在深色底上 */
+  --color-z1-solid: #2f6f5c;
+  --color-z2-solid: #497026;
+  --color-z3-solid: #7d620d;
+  --color-z4-solid: #a85214;
+  --color-z5-solid: #c0392c;
+
   /* ---- 热力梯度(距离档位,暖色单色系,与心率分区解耦) ---- */
-  --color-heat-0: #202a26;
+  --color-heat-0: #232e2a;
   --color-heat-1: #4a3520;
   --color-heat-2: #7a4f24;
   --color-heat-3: #b06a28;
   --color-heat-4: #ef7d33;
   --color-heat-5: #f9a05f;
-  --color-heat-future: #161d1a;
+  --color-heat-future: #1c2320;
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3);
 }
 
@@ -102,20 +149,35 @@
     --color-card-2: #1e2723;
     --color-ink: #e9eeeb;
     --color-ink-2: #9da9a2;
-    --color-ink-3: #68746d;
+    --color-ink-3: #8a968e;
     --color-line: #28322d;
     --color-line-2: #222b27;
     --color-route: #5fa8e8;
+    --color-accent-solid: #b4500f;
     --color-bar-muted: #2e3934;
 
+    /* 暗色下 z1-z5 在深底上已有 4.11~9.06:1，文字色直接复用原色 */
+    --color-z1-ink: var(--color-z1);
+    --color-z2-ink: var(--color-z2);
+    --color-z3-ink: var(--color-z3);
+    --color-z4-ink: var(--color-z4);
+    /* z5 红在深底上仅 3.76:1，需单独提亮；其余四档原色已 >=4.5 */
+    --color-z5-ink: #e8695d;
+    /* solid 不回落原色：白字必须始终压在深色底上 */
+    --color-z1-solid: #2f6f5c;
+    --color-z2-solid: #497026;
+    --color-z3-solid: #7d620d;
+    --color-z4-solid: #a85214;
+    --color-z5-solid: #c0392c;
+
     /* ---- 热力梯度(距离档位,暖色单色系,与心率分区解耦) ---- */
-    --color-heat-0: #202a26;
+    --color-heat-0: #232e2a;
     --color-heat-1: #4a3520;
     --color-heat-2: #7a4f24;
     --color-heat-3: #b06a28;
     --color-heat-4: #ef7d33;
     --color-heat-5: #f9a05f;
-    --color-heat-future: #161d1a;
+    --color-heat-future: #1c2320;
     --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3);
   }
 }

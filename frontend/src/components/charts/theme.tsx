@@ -39,7 +39,7 @@ export const axisProps = (c: ReturnType<typeof chartColors>) => ({
 // 图表内 tooltip 外壳 — 与 Radix Tooltip 视觉一致 (卡片底 + 细边 + 软阴影)
 export const ChartTooltipBox = ({ children }: { children: ReactNode }) => (
   <div className="rounded-[var(--radius-sm)] border border-[var(--color-line)] bg-[var(--color-card)] px-3 py-1.5 text-xs text-[var(--color-ink)] shadow-[var(--shadow-soft)]">
-    <span className="tnum font-mono">{children}</span>
+    <div className="tnum font-mono">{children}</div>
   </div>
 );
 
